@@ -1,4 +1,4 @@
--- BIVA STORM | MULTI-GAME HUB (Mobile Optimized)
+-- BIVA STORM | MULTI-GAME HUB (Mobile Optimized - No AutoFill)
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
@@ -16,7 +16,6 @@ end
 -- LẤY HWID AN TOÀN CHO CẢ IOS VÀ ANDROID
 local hwid = tostring(player.UserId)
 pcall(function()
-    -- Thử lưu file (Android chạy được, iOS có thể báo lỗi nhưng pcall sẽ bắt)
     if isfile and readfile and writefile then
         if isfile("Biva_HWID.txt") and readfile("Biva_HWID.txt") ~= "" then
             hwid = readfile("Biva_HWID.txt")
@@ -30,14 +29,13 @@ if playerGui:FindFirstChild("BivaLoaderUI") then
     playerGui.BivaLoaderUI:Destroy()
 end
 
--- TẠO UI TRƯỚC KHI GỌI SERVER
+-- TẠO UI
 local sg = Instance.new("ScreenGui")
 sg.Name = "BivaLoaderUI"
 sg.ResetOnSpawn = false
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 sg.Parent = playerGui
 
--- KHUNG CHÍNH
 local f = Instance.new("Frame", sg)
 f.Size = UDim2.new(0, 320, 0, 400)
 f.Position = UDim2.new(0.5, -160, 0.5, -200)
@@ -74,7 +72,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- TIÊU ĐỀ
 local titleBar = Instance.new("Frame", f)
 titleBar.Size = UDim2.new(1, 0, 0, 44)
 titleBar.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
@@ -103,7 +100,6 @@ closeBtn.MouseButton1Click:Connect(function() sg:Destroy() end)
 local selectedGameId = ""
 local selectedGameName = ""
 
--- MÀN HÌNH 1: CHỌN GAME
 local gameSelectFrame = Instance.new("Frame", f)
 gameSelectFrame.Size = UDim2.new(1, -24, 1, -60)
 gameSelectFrame.Position = UDim2.new(0, 12, 0, 52)
@@ -119,7 +115,6 @@ local listLayout = Instance.new("UIListLayout", scroll)
 listLayout.Padding = UDim.new(0, 8)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- MÀN HÌNH 2: NHẬP KEY
 local keyInputFrame = Instance.new("Frame", f)
 keyInputFrame.Size = UDim2.new(1, -24, 1, -60)
 keyInputFrame.Position = UDim2.new(0, 12, 0, 52)
@@ -191,12 +186,7 @@ tb.TextSize = 13
 tb.Text = ""
 Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 8)
 
--- Đọc key cũ (nếu có)
-pcall(function()
-    if isfile and readfile and isfile("BivaStorm_SavedKey.txt") then
-        tb.Text = readfile("BivaStorm_SavedKey.txt")
-    end
-end)
+-- (ĐÃ XÓA ĐOẠN TỰ ĐỘNG ĐIỀN KEY Ở ĐÂY)
 
 local btn = Instance.new("TextButton", keyInputFrame)
 btn.Size = UDim2.new(1, 0, 0, 42)
@@ -218,7 +208,6 @@ status.Text = ""
 status.TextSize = 12
 status.TextWrapped = true
 
--- DANH SÁCH GAME
 local games = {
     {name = "Steal an Egg", id = "steal_egg"},
     {name = "Blox Fruits", id = "blox_fruits"},
@@ -245,7 +234,6 @@ listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
 end)
 
--- LOGIC KÍCH HOẠT
 btn.MouseButton1Click:Connect(function()
     local cleanKey = string.gsub(tb.Text, "%s+", "")
     if cleanKey == "" then
@@ -276,9 +264,7 @@ btn.MouseButton1Click:Connect(function()
             else
                 local func, err = loadstring(code)
                 if func then
-                    pcall(function()
-                        if writefile then writefile("BivaStorm_SavedKey.txt", cleanKey) end
-                    end)
+                    -- (ĐÃ XÓA ĐOẠN TỰ ĐỘNG LƯU KEY Ở ĐÂY)
                     sg:Destroy()
                     func()
                 else
