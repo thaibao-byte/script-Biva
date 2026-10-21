@@ -1,10 +1,11 @@
--- BIVA STORM | MULTI-GAME HUB
+-- BIVA STORM | MULTI-GAME HUB (Mobile Optimized)
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Hàm mã hóa URL an toàn (thay thế HttpService:UrlEncode)
+-- Hàm mã hóa URL an toàn
 local function url_encode(str)
     if type(str) ~= "string" then return "" end
     return (str:gsub("([^%w ])", function(c)
@@ -12,33 +13,29 @@ local function url_encode(str)
     end):gsub(" ", "%%20"))
 end
 
--- FIX HWID: Lưu vào file để không mất key khi đổi tên
-local HWID_FILE = "BivaStorm_HWID.txt"
-local hwid
+-- LẤY HWID AN TOÀN CHO CẢ IOS VÀ ANDROID
+local hwid = tostring(player.UserId)
 pcall(function()
-    if isfile and readfile then
-        if isfile(HWID_FILE) and readfile(HWID_FILE) ~= "" then
-            hwid = readfile(HWID_FILE)
+    -- Thử lưu file (Android chạy được, iOS có thể báo lỗi nhưng pcall sẽ bắt)
+    if isfile and readfile and writefile then
+        if isfile("Biva_HWID.txt") and readfile("Biva_HWID.txt") ~= "" then
+            hwid = readfile("Biva_HWID.txt")
         else
-            hwid = tostring(player.UserId)
-            writefile(HWID_FILE, hwid)
+            writefile("Biva_HWID.txt", hwid)
         end
-    else
-        hwid = tostring(player.UserId)
     end
 end)
-if not hwid then hwid = tostring(player.UserId) end
 
-local SAVE_KEY_FILE = "BivaStorm_SavedKey.txt"
-if player.PlayerGui:FindFirstChild("BivaLoaderUI") then
-    player.PlayerGui.BivaLoaderUI:Destroy()
+if playerGui:FindFirstChild("BivaLoaderUI") then
+    playerGui.BivaLoaderUI:Destroy()
 end
 
+-- TẠO UI TRƯỚC KHI GỌI SERVER
 local sg = Instance.new("ScreenGui")
 sg.Name = "BivaLoaderUI"
 sg.ResetOnSpawn = false
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-sg.Parent = player.PlayerGui
+sg.Parent = playerGui
 
 -- KHUNG CHÍNH
 local f = Instance.new("Frame", sg)
@@ -53,7 +50,7 @@ mainStroke.Color = Color3.fromRGB(0, 255, 204)
 mainStroke.Thickness = 1.5
 mainStroke.Transparency = 0.25
 
--- HỖ TRỢ KÉO THẢ MƯỢT TRÊN CẢ PC & MOBILE
+-- HỖ TRỢ KÉO THẢ
 local dragging, dragInput, dragStart, startPos
 f.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -61,9 +58,7 @@ f.InputBegan:Connect(function(input)
         dragStart = input.Position
         startPos = f.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
@@ -79,7 +74,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- TIÊU ĐỀ HEADER
+-- TIÊU ĐỀ
 local titleBar = Instance.new("Frame", f)
 titleBar.Size = UDim2.new(1, 0, 0, 44)
 titleBar.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
@@ -103,9 +98,7 @@ closeBtn.Text = "X"
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextSize = 13
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-closeBtn.MouseButton1Click:Connect(function()
-    sg:Destroy()
-end)
+closeBtn.MouseButton1Click:Connect(function() sg:Destroy() end)
 
 local selectedGameId = ""
 local selectedGameName = ""
@@ -115,19 +108,9 @@ local gameSelectFrame = Instance.new("Frame", f)
 gameSelectFrame.Size = UDim2.new(1, -24, 1, -60)
 gameSelectFrame.Position = UDim2.new(0, 12, 0, 52)
 gameSelectFrame.BackgroundTransparency = 1
-local searchBox = Instance.new("TextBox", gameSelectFrame)
-searchBox.Size = UDim2.new(1, 0, 0, 38)
-searchBox.BackgroundColor3 = Color3.fromRGB(24, 29, 40)
-searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-searchBox.PlaceholderColor3 = Color3.fromRGB(130, 140, 160)
-searchBox.PlaceholderText = "🔍 Tìm kiếm game (VD: Steal, Fruit)..."
-searchBox.Text = ""
-searchBox.Font = Enum.Font.Gotham
-searchBox.TextSize = 13
-Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 8)
+
 local scroll = Instance.new("ScrollingFrame", gameSelectFrame)
-scroll.Size = UDim2.new(1, 0, 1, -48)
-scroll.Position = UDim2.new(0, 0, 0, 48)
+scroll.Size = UDim2.new(1, 0, 1, 0)
 scroll.BackgroundTransparency = 1
 scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 scroll.ScrollBarThickness = 4
@@ -142,6 +125,7 @@ keyInputFrame.Size = UDim2.new(1, -24, 1, -60)
 keyInputFrame.Position = UDim2.new(0, 12, 0, 52)
 keyInputFrame.BackgroundTransparency = 1
 keyInputFrame.Visible = false
+
 local keyTitle = Instance.new("TextLabel", keyInputFrame)
 keyTitle.Size = UDim2.new(1, 0, 0, 30)
 keyTitle.BackgroundTransparency = 1
@@ -149,6 +133,7 @@ keyTitle.TextColor3 = Color3.fromRGB(0, 255, 204)
 keyTitle.Text = "Kích hoạt: ..."
 keyTitle.Font = Enum.Font.GothamBold
 keyTitle.TextSize = 15
+
 local backBtn = Instance.new("TextButton", keyInputFrame)
 backBtn.Size = UDim2.new(0, 75, 0, 26)
 backBtn.Position = UDim2.new(0, 0, 0, 36)
@@ -162,6 +147,7 @@ backBtn.MouseButton1Click:Connect(function()
     keyInputFrame.Visible = false
     gameSelectFrame.Visible = true
 end)
+
 local hwidLbl = Instance.new("TextBox", keyInputFrame)
 hwidLbl.Size = UDim2.new(1, 0, 0, 30)
 hwidLbl.Position = UDim2.new(0, 0, 0, 74)
@@ -173,6 +159,7 @@ hwidLbl.ClearTextOnFocus = false
 hwidLbl.Font = Enum.Font.GothamMedium
 hwidLbl.TextSize = 11
 Instance.new("UICorner", hwidLbl).CornerRadius = UDim.new(0, 6)
+
 local copyBtn = Instance.new("TextButton", keyInputFrame)
 copyBtn.Size = UDim2.new(1, 0, 0, 24)
 copyBtn.Position = UDim2.new(0, 0, 0, 108)
@@ -188,9 +175,10 @@ copyBtn.MouseButton1Click:Connect(function()
         task.wait(2)
         copyBtn.Text = "📋 Bấm để copy Mã Máy (HWID)"
     else
-        copyBtn.Text = "⚠️ Executor không hỗ trợ tự copy, hãy bôi đen ô trên!"
+        copyBtn.Text = "⚠️ Hãy bôi đen ô trên để copy!"
     end
 end)
+
 local tb = Instance.new("TextBox", keyInputFrame)
 tb.Size = UDim2.new(1, 0, 0, 38)
 tb.Position = UDim2.new(0, 0, 0, 140)
@@ -203,9 +191,10 @@ tb.TextSize = 13
 tb.Text = ""
 Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 8)
 
+-- Đọc key cũ (nếu có)
 pcall(function()
-    if isfile and readfile and isfile(SAVE_KEY_FILE) then
-        tb.Text = readfile(SAVE_KEY_FILE)
+    if isfile and readfile and isfile("BivaStorm_SavedKey.txt") then
+        tb.Text = readfile("BivaStorm_SavedKey.txt")
     end
 end)
 
@@ -218,6 +207,7 @@ btn.TextColor3 = Color3.fromRGB(10, 15, 20)
 btn.Font = Enum.Font.GothamBold
 btn.TextSize = 14
 Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
 local status = Instance.new("TextLabel", keyInputFrame)
 status.Size = UDim2.new(1, 0, 0, 45)
 status.Position = UDim2.new(0, 0, 0, 240)
@@ -228,11 +218,11 @@ status.Text = ""
 status.TextSize = 12
 status.TextWrapped = true
 
+-- DANH SÁCH GAME
 local games = {
     {name = "Steal an Egg", id = "steal_egg"},
     {name = "Blox Fruits", id = "blox_fruits"},
 }
-local buttons = {}
 for i, g in ipairs(games) do
     local gBtn = Instance.new("TextButton", scroll)
     gBtn.Size = UDim2.new(1, 0, 0, 42)
@@ -241,9 +231,7 @@ for i, g in ipairs(games) do
     gBtn.Text = "🎮  " .. g.name
     gBtn.Font = Enum.Font.GothamBold
     gBtn.TextSize = 14
-    gBtn.Name = g.id
     Instance.new("UICorner", gBtn).CornerRadius = UDim.new(0, 8)
-    table.insert(buttons, {btn = gBtn, name = string.lower(g.name)})
     gBtn.MouseButton1Click:Connect(function()
         gameSelectFrame.Visible = false
         keyInputFrame.Visible = true
@@ -255,18 +243,6 @@ for i, g in ipairs(games) do
 end
 listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
-end)
-scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
-
-searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local txt = string.lower(searchBox.Text)
-    for _, item in ipairs(buttons) do
-        if string.find(item.name, txt, 1, true) then
-            item.btn.Visible = true
-        else
-            item.btn.Visible = false
-        end
-    end
 end)
 
 -- LOGIC KÍCH HOẠT
@@ -280,7 +256,7 @@ btn.MouseButton1Click:Connect(function()
     btn.Text = "⏳ ĐANG TẢI..."
     btn.BackgroundColor3 = Color3.fromRGB(100, 110, 125)
     status.TextColor3 = Color3.fromRGB(255, 255, 255)
-    status.Text = "Đang kết nối tới máy chủ Biva Storm..."
+    status.Text = "Đang kết nối máy chủ (Có thể mất 50s nếu Server ngủ đông)..."
     
     task.spawn(function()
         local url = "https://biva-hub.onrender.com/api/get_script?key="
@@ -292,16 +268,16 @@ btn.MouseButton1Click:Connect(function()
             return game:HttpGet(url)
         end)
         
-        if success and code then
+        if success and code and code ~= "" then
             if string.find(code, "Kick") then
                 loadstring(code)()
+                btn.Text = "⚡ KÍCH HOẠT SCRIPT"
+                btn.BackgroundColor3 = Color3.fromRGB(0, 255, 204)
             else
                 local func, err = loadstring(code)
                 if func then
                     pcall(function()
-                        if writefile then
-                            writefile(SAVE_KEY_FILE, cleanKey)
-                        end
+                        if writefile then writefile("BivaStorm_SavedKey.txt", cleanKey) end
                     end)
                     sg:Destroy()
                     func()
