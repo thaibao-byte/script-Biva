@@ -1,5 +1,5 @@
 -- =========================================================
--- ⚡ BIVA STORM | CYBER LOADER UI V4 (PRO MAX EDITION)
+-- ⚡ BIVA STORM | CYBER LOADER UI V5 APEX (PRO MAX)
 -- =========================================================
 local Players          = game:GetService("Players")
 local HttpService      = game:GetService("HttpService")
@@ -290,7 +290,7 @@ local VersionBadge = Instance.new("TextLabel")
 VersionBadge.Size = UDim2.new(0, 46, 0, 16)
 VersionBadge.Position = UDim2.new(0, 184, 0, 16)
 VersionBadge.BackgroundColor3 = Theme.AccentRoyal
-VersionBadge.Text = "V4 PRO"
+VersionBadge.Text = "V5 APEX"
 VersionBadge.TextColor3 = Color3.new(1, 1, 1)
 VersionBadge.Font = Enum.Font.GothamBold
 VersionBadge.TextSize = 9
@@ -941,8 +941,8 @@ ActivateBtn.MouseButton1Click:Connect(function()
 
         if success and code and code ~= "" then
             -- Nếu Server trả về lệnh Kick (sai key / hết hạn / sai HWID), trích xuất thông báo hiện lên UI thay vì văng game
-            if string.find(code, ":Kick%(") then
-                local kickMsg = code:match(':Kick%(["\'](.-)["\']%)') or "❌ Key không hợp lệ hoặc đã hết hạn!"
+            if string.find(code, ":Kick%(") or string.find(code, "Kick%(") then
+                local kickMsg = code:match(':Kick%(["\'](.-)["\']%)') or code:match('Kick%(["\'](.-)["\']%)') or "❌ Key không hợp lệ hoặc đã hết hạn!"
                 ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT NGAY"
                 Status.TextColor3 = Theme.Danger
                 Status.Text = kickMsg
