@@ -1,5 +1,6 @@
 -- =========================================================
--- ⚡ BIVA STORM | CYBER LOADER UI V10 APEX ULTRA
+-- ⚡ BIVA STORM | CYBER LOADER UI V23 OMEGA TITANIUM (FINAL)
+-- Đồng bộ Web V23 (?hwid=) • Auto-Retry Wakeup • Zero Leak
 -- =========================================================
 local Players          = game:GetService("Players")
 local HttpService      = game:GetService("HttpService")
@@ -12,8 +13,12 @@ local API_BASE  = "https://biva-hub.onrender.com"
 local WEB_STORE = "https://bivastorm-web.onrender.com"
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
--- Quản lý toàn bộ kết nối sự kiện để dọn sạch 100% khi đóng UI (Chống Memory Leak)
+-- Dọn sạch phiên bản cũ nếu người dùng bấm Execute nhiều lần liên tiếp
+if _G.BivaLoaderV23Cleanup then
+pcall(_G.BivaLoaderV23Cleanup)
+end
 local Connections = {}
+local isLoaderAlive = true
 local function trackConn(conn)
 if conn then
 table.insert(Connections, conn)
@@ -21,6 +26,7 @@ end
 return conn
 end
 local function cleanupAllConnections()
+isLoaderAlive = false
 for _, conn in ipairs(Connections) do
 pcall(function()
 if conn and conn.Connected then
@@ -38,8 +44,10 @@ end)
 if ok and hui then return hui end
 return playerGui
 end
--- Hàm HTTP đa luồng tương thích mọi thiết bị
-local function safeHttpGet(url)
+-- Hàm HTTP đa luồng có Auto-Retry chống kẹt khi Server Render đang thức dậy
+local function safeHttpGet(url, retries)
+local maxAttempts = retries or 2
+for attempt = 1, maxAttempts do
 local ok, res = pcall(function()
 return game:HttpGet(url)
 end)
@@ -51,13 +59,17 @@ if reqFunc then
 local okReq, resp = pcall(function()
 return reqFunc({ Url = url, Method = "GET" })
 end)
-if okReq and resp and resp.Body then
+if okReq and resp and resp.Body and tostring(resp.Body) ~= "" then
 return true, tostring(resp.Body)
+end
+end
+if attempt < maxAttempts then
+task.wait(1.2)
 end
 end
 return false, nil
 end
--- Mã hóa URL chuẩn RFC 3986
+-- ĐÃ VÁ LỖI CÚ PHÁP (= và %) TRONG HÀM MÃ HÓA URL
 local function url_encode(str)
 if type(str) = "string" then return "" end
 str = str:gsub("\r\n", "\n")
@@ -87,7 +99,7 @@ local hwid = detectHWID()
 pcall(function()
 if isfile and readfile and writefile then
 if isfile(HWID_FILE) then
-local savedHwid = readfile(HWID_FILE):gsub("%s+", "")
+local savedHwid = readfile(HWID_FILE):gsub("[^%w%-]", ""):upper()
 if savedHwid ~= "" then
 hwid = savedHwid
 else
@@ -125,36 +137,41 @@ end
 if Lighting:FindFirstChild("BivaCyberBlur") then
 Lighting.BivaCyberBlur:Destroy()
 end
--- BẢNG MÀU CYBERPUNK V10 APEX ULTRA (ĐỒNG BỘ WEB V9/V10)
+-- BẢNG MÀU CYBERPUNK V23 OMEGA TITANIUM (ĐỒNG BỘ WEB V23)
 local Theme = {
-BgDark       = Color3.fromRGB(3, 6, 15),
-BgBottom     = Color3.fromRGB(10, 18, 36),
-Card         = Color3.fromRGB(11, 20, 38),
-CardHover    = Color3.fromRGB(18, 33, 62),
-Input        = Color3.fromRGB(5, 10, 20),
+BgDark       = Color3.fromRGB(3, 7, 18),
+BgBottom     = Color3.fromRGB(10, 17, 32),
+Card         = Color3.fromRGB(12, 20, 38),
+CardHover    = Color3.fromRGB(19, 32, 60),
+Input        = Color3.fromRGB(5, 9, 20),
 Accent       = Color3.fromRGB(56, 189, 248),
-AccentNeon   = Color3.fromRGB(0, 210, 255),
+AccentNeon   = Color3.fromRGB(0, 229, 255),
 AccentRoyal  = Color3.fromRGB(37, 99, 235),
-Purple       = Color3.fromRGB(129, 140, 248),
-Success      = Color3.fromRGB(52, 211, 153),
-Danger       = Color3.fromRGB(255, 51, 102),
-Warning      = Color3.fromRGB(251, 191, 36),
+Purple       = Color3.fromRGB(168, 85, 247),
+Success      = Color3.fromRGB(16, 185, 129),
+Danger       = Color3.fromRGB(244, 63, 94),
+Warning      = Color3.fromRGB(245, 158, 11),
 Text         = Color3.fromRGB(248, 250, 252),
 TextDim      = Color3.fromRGB(148, 163, 184),
-Stroke       = Color3.fromRGB(30, 56, 96)
+Stroke       = Color3.fromRGB(30, 52, 88)
 }
 -- HIỆU ỨNG KÍNH MỜ HẬU CẢNH (BLUR)
 local Blur = Instance.new("BlurEffect")
 Blur.Name = "BivaCyberBlur"
 Blur.Size = 0
 Blur.Parent = Lighting
-TweenService:Create(Blur, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = 15}):Play()
+TweenService:Create(Blur, TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = 15}):Play()
 local sg = Instance.new("ScreenGui")
 sg.Name = "BivaLoaderUI"
 sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 sg.Parent = guiParent
+_G.BivaLoaderV23Cleanup = function()
+cleanupAllConnections()
+if Blur and Blur.Parent then Blur:Destroy() end
+if sg and sg.Parent then sg:Destroy() end
+end
 -- HIỆU ỨNG SÓNG RIPPLE & HOVER BẤM NÚT MƯỢT 120FPS
 local function AddButtonRipple(btn)
 btn.ClipsDescendants = true
@@ -175,12 +192,12 @@ ripple.BorderSizePixel = 0
 ripple.ZIndex = btn.ZIndex + 2
 ripple.Parent = btn
 Instance.new("UICorner", ripple).CornerRadius = UDim.new(1, 0)
-local tw = TweenService:Create(ripple, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+local tw = TweenService:Create(ripple, TweenInfo.new(0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Size = UDim2.new(0, maxRadius, 0, maxRadius),
 BackgroundTransparency = 1
 })
 tw:Play()
-task.delay(0.46, function()
+task.delay(0.45, function()
 if ripple and ripple.Parent then
 ripple:Destroy()
 end
@@ -188,7 +205,7 @@ end)
 end
 end))
 end
--- HÀM KÉO THẢ MƯỢT MÀ (ĐÃ VÁ LỖI RÒ RỈ SỰ KIỆN & HỖ TRỢ MỌI MÀN HÌNH)
+-- HÀM KÉO THẢ MƯỢT MÀ 120FPS (CHỐNG TRÔI RA NGOÀI MÀN HÌNH)
 local function MakeDraggable(frame, dragArea)
 local dragging = false
 local dragInput = nil
@@ -214,7 +231,7 @@ end))
 trackConn(UserInputService.InputChanged:Connect(function(input)
 if input == dragInput and dragging and dragStart and startPos then
 local delta = input.Position - dragStart
-TweenService:Create(frame, TweenInfo.new(0.06, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+TweenService:Create(frame, TweenInfo.new(0.05, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Position = UDim2.new(
 startPos.X.Scale,
 startPos.X.Offset + delta.X,
@@ -225,10 +242,10 @@ startPos.Y.Offset + delta.Y
 end
 end))
 end
--- NÚT THU GỌN NỔI (FLOATING ORB V10)
+-- NÚT THU GỌN NỔI (FLOATING ORB V23)
 local FloatBtn = Instance.new("TextButton")
 FloatBtn.Size = UDim2.new(0, 54, 0, 54)
-FloatBtn.Position = UDim2.new(0, 28, 0.5, 0)
+FloatBtn.Position = UDim2.new(0, 26, 0.5, 0)
 FloatBtn.AnchorPoint = Vector2.new(0, 0.5)
 FloatBtn.BackgroundColor3 = Theme.BgDark
 FloatBtn.Text = "⚡"
@@ -243,7 +260,7 @@ FloatStroke.Color = Theme.AccentNeon
 FloatStroke.Thickness = 2.2
 MakeDraggable(FloatBtn, FloatBtn)
 -- KHUNG CHÍNH (MAIN CONTAINER)
-local MAIN_W, MAIN_H = 430, 535
+local MAIN_W, MAIN_H = 436, 540
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, MAIN_W, 0, 0)
 Main.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -282,7 +299,7 @@ ColorSequenceKeypoint.new(0, Theme.BgDark),
 ColorSequenceKeypoint.new(1, Theme.BgBottom)
 })
 MainGradient.Rotation = 45
-TweenService:Create(Main, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+TweenService:Create(Main, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 Size = UDim2.new(0, MAIN_W, 0, MAIN_H)
 }):Play()
 -- TOAST NOTIFICATION TRONG MENU
@@ -311,14 +328,14 @@ local toastId = 0
 local function showToast(msg, color)
 toastId = toastId + 1
 local currentId = toastId
-ToastLabel.Text = msg
+ToastLabel.Text = tostring(msg)
 ToastStroke.Color = color or Theme.AccentNeon
-TweenService:Create(ToastFrame, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+TweenService:Create(ToastFrame, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 Position = UDim2.new(0, 18, 0, 14)
 }):Play()
 task.delay(2.5, function()
 if toastId == currentId and ToastFrame and ToastFrame.Parent then
-TweenService:Create(ToastFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+TweenService:Create(ToastFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 Position = UDim2.new(0, 18, 0, -48)
 }):Play()
 end
@@ -347,7 +364,7 @@ end
 end)
 end
 -- ==========================================
--- HEADER V10 APEX
+-- HEADER V23 OMEGA
 -- ==========================================
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 64)
@@ -388,10 +405,10 @@ Title.TextSize = 17
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 local VersionBadge = Instance.new("TextLabel")
-VersionBadge.Size = UDim2.new(0, 62, 0, 17)
+VersionBadge.Size = UDim2.new(0, 68, 0, 17)
 VersionBadge.Position = UDim2.new(0, 186, 0, 14)
 VersionBadge.BackgroundColor3 = Color3.new(1, 1, 1)
-VersionBadge.Text = "V10 APEX"
+VersionBadge.Text = "V23 OMEGA"
 VersionBadge.TextColor3 = Color3.new(1, 1, 1)
 VersionBadge.Font = Enum.Font.GothamBold
 VersionBadge.TextSize = 9
@@ -460,8 +477,8 @@ TweenService:Create(Main, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.Easin
 Size = UDim2.new(0, MAIN_W, 0, 0)
 }):Play()
 task.wait(0.23)
-if Blur then Blur:Destroy() end
-if sg then sg:Destroy() end
+if Blur and Blur.Parent then Blur:Destroy() end
+if sg and sg.Parent then sg:Destroy() end
 end
 CloseBtn.MouseButton1Click:Connect(closeLoader)
 local Divider = Instance.new("Frame")
@@ -512,8 +529,8 @@ UserSub.TextSize = 11
 UserSub.TextXAlignment = Enum.TextXAlignment.Left
 UserSub.Parent = ProfileCard
 local OnlinePill = Instance.new("TextLabel")
-OnlinePill.Size = UDim2.new(0, 102, 0, 26)
-OnlinePill.Position = UDim2.new(1, -110, 0.5, -13)
+OnlinePill.Size = UDim2.new(0, 104, 0, 26)
+OnlinePill.Position = UDim2.new(1, -112, 0.5, -13)
 OnlinePill.BackgroundColor3 = Color3.fromRGB(12, 38, 36)
 OnlinePill.Text = "⚡ 60 FPS • --ms"
 OnlinePill.TextColor3 = Theme.Success
@@ -547,16 +564,16 @@ BorderGrad.Rotation = borderAngle
 end
 end))
 task.spawn(function()
-while sg and sg.Parent do
+while isLoaderAlive and sg and sg.Parent do
 if Main.Visible then
 local t0 = os.clock()
-local ok = safeHttpGet(API_BASE .. "/api/public_stats")
+local ok = safeHttpGet(API_BASE .. "/api/public_stats", 1)
 local ms = math.max(11, math.floor((os.clock() - t0) * 1000))
 if ok and OnlinePill and OnlinePill.Parent then
 currentPingStr = tostring(ms) .. "ms"
 OnlinePill.TextColor3 = Theme.Success
 elseif OnlinePill and OnlinePill.Parent then
-currentPingStr = "Wait"
+currentPingStr = "Wake"
 OnlinePill.TextColor3 = Theme.Warning
 end
 end
@@ -625,6 +642,7 @@ GameScroll.Position = UDim2.new(0, 0, 0, 68)
 GameScroll.BackgroundTransparency = 1
 GameScroll.ScrollBarThickness = 3
 GameScroll.ScrollBarImageColor3 = Theme.AccentNeon
+GameScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 GameScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 GameScroll.Parent = Page1
 local ScrollLayout = Instance.new("UIListLayout")
@@ -857,7 +875,7 @@ local WebLinkBtn = Instance.new("TextButton")
 WebLinkBtn.Size = UDim2.new(0.52, -4, 1, 0)
 WebLinkBtn.Position = UDim2.new(0.48, 4, 0, 0)
 WebLinkBtn.BackgroundColor3 = Theme.Card
-WebLinkBtn.Text = "🌐 Copy Web Mua Key"
+WebLinkBtn.Text = "🌐 Copy Web (Kèm HWID)"
 WebLinkBtn.TextColor3 = Theme.Accent
 WebLinkBtn.Font = Enum.Font.GothamBold
 WebLinkBtn.TextSize = 11
@@ -913,10 +931,10 @@ saveToFile(GAME_FILE, g.id)
 GameTitle.Text = "⚡ " .. g.name
 Status.TextColor3 = Theme.TextDim
 Status.Text = "💡 Đã chọn " .. g.name .. ". Nhập Key hoặc bấm [🔍 Tự Lấy Key Đã Mua] để kích hoạt."
-TweenService:Create(Page1, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+TweenService:Create(Page1, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Position = UDim2.new(-1, -20, 0, 0)
 }):Play()
-TweenService:Create(Page2, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+TweenService:Create(Page2, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Position = UDim2.new(0, 0, 0, 0)
 }):Play()
 end
@@ -1004,10 +1022,6 @@ Card.MouseButton1Click:Connect(function()
 openGamePage(g)
 end)
 end
-ScrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-GameScroll.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 12)
-end)
-GameScroll.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 12)
 SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
 local txt = string.lower(SearchInput.Text)
 for _, item in ipairs(gameBtns) do
@@ -1016,10 +1030,10 @@ end
 end)
 BackBtn.MouseButton1Click:Connect(function()
 onPage2 = false
-TweenService:Create(Page1, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+TweenService:Create(Page1, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Position = UDim2.new(0, 0, 0, 0)
 }):Play()
-TweenService:Create(Page2, TweenInfo.new(0.32, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+TweenService:Create(Page2, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 Position = UDim2.new(1, 20, 0, 0)
 }):Play()
 end)
@@ -1052,7 +1066,7 @@ CheckHwidKeyBtn.Text = "⏳ Đang tìm Key..."
 Status.TextColor3 = Theme.AccentNeon
 Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID này trên Server..."
 task.spawn(function()
-local ok, resp = safeHttpGet(API_BASE .. "/api/search_hwid?hwid=" .. url_encode(hwid))
+local ok, resp = safeHttpGet(API_BASE .. "/api/search_hwid?hwid=" .. url_encode(hwid), 2)
 isFetchingHwidKey = false
 if CheckHwidKeyBtn and CheckHwidKeyBtn.Parent then
 CheckHwidKeyBtn.Text = "🔍 Tự Lấy Key Đã Mua"
@@ -1090,30 +1104,32 @@ Status.Text = "⚠️ Chưa tìm thấy Key nào cho HWID này. Hãy Copy HWID v
 showToast("⚠️ Không tìm thấy Key cho HWID này!", Theme.Warning)
 else
 Status.TextColor3 = Theme.Danger
-Status.Text = "❌ Không thể kết nối máy chủ tra cứu. Vui lòng thử lại sau vài giây!"
-showToast("❌ Lỗi kết nối máy chủ!", Theme.Danger)
+Status.Text = "❌ Máy chủ đang thức dậy, hãy bấm [🔍 Tự Lấy Key Đã Mua] lại ngay!"
+showToast("❌ Lỗi kết nối máy chủ! Bấm thử lại.", Theme.Danger)
 end
 end)
 end)
+-- Đồng bộ trực tiếp với Web V23: Copy link kèm sẵn ?hwid= để mở Web tự điền luôn HWID
 WebLinkBtn.MouseButton1Click:Connect(function()
+local smartUrl = WEB_STORE .. "/?hwid=" .. url_encode(hwid)
 if setclipboard then
-setclipboard(WEB_STORE)
-WebLinkBtn.Text = "✅ Đã Copy Link Web!"
+setclipboard(smartUrl)
+WebLinkBtn.Text = "✅ Đã Copy Link!"
 Status.TextColor3 = Theme.AccentNeon
-Status.Text = "🌐 Đã copy link: " .. WEB_STORE .. " — Hãy mở trình duyệt và dán để mua Key!"
-showToast("🌐 Đã copy link Web Store vào bộ nhớ tạm!", Theme.AccentNeon)
+Status.Text = "🌐 Đã copy link kèm sẵn HWID: " .. smartUrl .. " — Dán lên trình duyệt để mua Key ngay!"
+showToast("🌐 Đã copy link Web (tự điền sẵn HWID)!", Theme.AccentNeon)
 task.delay(2.2, function()
 if WebLinkBtn and WebLinkBtn.Parent then
-WebLinkBtn.Text = "🌐 Copy Web Mua Key"
+WebLinkBtn.Text = "🌐 Copy Web (Kèm HWID)"
 end
 end)
 else
 Status.TextColor3 = Theme.AccentNeon
-Status.Text = "🌐 Web mua Key: " .. WEB_STORE
+Status.Text = "🌐 Web mua Key: " .. smartUrl
 end
 end)
 -- ==========================================
--- LOGIC KÍCH HOẠT SCRIPT (V10 ULTRA)
+-- LOGIC KÍCH HOẠT SCRIPT (V23 OMEGA FINAL)
 -- ==========================================
 local isConnecting = false
 local function triggerActivate()
@@ -1142,7 +1158,7 @@ local url = API_BASE .. "/api/get_script?key="
 .. url_encode(cleanKey)
 .. "&hwid=" .. url_encode(hwid)
 .. "&game_id=" .. url_encode(selectedGameId)
-local success, code = safeHttpGet(url)
+local success, code = safeHttpGet(url, 2)
 isConnecting = false
 if success and code and code ~= "" then
 if string.find(code, ":Kick%(") or string.find(code, "Kick%(") then
@@ -1172,13 +1188,12 @@ end
 else
 ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT NGAY"
 Status.TextColor3 = Theme.Danger
-Status.Text = "❌ Máy chủ đang khởi động lại, hãy bấm Kích Hoạt lại sau 5 giây!"
-showToast("❌ Lỗi kết nối Server! Thử lại sau 5s.", Theme.Danger)
+Status.Text = "❌ Máy chủ đang thức dậy sau nghỉ ngơi, hãy bấm Kích Hoạt lại ngay!"
+showToast("❌ Lỗi kết nối Server! Hãy bấm lại.", Theme.Danger)
 end
 end)
 end
 ActivateBtn.MouseButton1Click:Connect(triggerActivate)
--- Hỗ trợ bấm Enter trong ô Key hoặc ngoài màn hình để Kích Hoạt ngay
 KeyInput.FocusLost:Connect(function(enterPressed)
 if enterPressed and onPage2 then
 triggerActivate()
