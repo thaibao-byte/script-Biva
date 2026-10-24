@@ -71,7 +71,7 @@ return false, nil
 end
 -- ĐÃ VÁ LỖI CÚ PHÁP (= và %) TRONG HÀM MÃ HÓA URL
 local function url_encode(str)
-if type(str) = "string" then return "" end
+if type(str) == "string" then return "" end
 str = str:gsub("\r\n", "\n")
 return (str:gsub("([^%w%-%.%_%])", function(c)
 return string.format("%%%02X", string.byte(c))
