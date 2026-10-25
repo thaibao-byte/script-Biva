@@ -1,6 +1,6 @@
 -- =========================================================
--- ⚡ BIVA STORM | CYBER LOADER UI V23 OMEGA TITANIUM (FINAL)
--- Đồng bộ Web V23 (?hwid=) • Auto-Retry Wakeup • Zero Leak
+-- ⚡ BIVA STORM | CYBER LOADER UI V23.5 OMEGA TITANIUM
+-- Đã vá lỗi mất dấu ngã (~) gây hỏng check Key & lỗi kết nối
 -- =========================================================
 local Players          = game:GetService("Players")
 local HttpService      = game:GetService("HttpService")
@@ -9,11 +9,15 @@ local TweenService     = game:GetService("TweenService")
 local RunService       = game:GetService("RunService")
 local Lighting         = game:GetService("Lighting")
 local Workspace        = game:GetService("Workspace")
-local API_BASE  = "https://biva-hub.onrender.com"
+-- Hệ thống Dual-Endpoint tự động chuyển đổi nếu 1 trong 2 link đang ngủ đông
+local API_LIST = {
+"https://biva-hub.onrender.com",
+"https://bivastorm-web.onrender.com"
+}
+local API_BASE  = API_LIST[1]
 local WEB_STORE = "https://bivastorm-web.onrender.com"
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
--- Dọn sạch phiên bản cũ nếu người dùng bấm Execute nhiều lần liên tiếp
 if _G.BivaLoaderV23Cleanup then
 pcall(_G.BivaLoaderV23Cleanup)
 end
@@ -36,7 +40,6 @@ end)
 end
 table.clear(Connections)
 end
--- Bảo vệ UI trên các môi trường hỗ trợ gethui / CoreGui
 local function getGuiParent()
 local ok, hui = pcall(function()
 return (gethui and gethui()) or game:GetService("CoreGui")
@@ -44,23 +47,66 @@ end)
 if ok and hui then return hui end
 return playerGui
 end
--- Hàm HTTP đa luồng có Auto-Retry chống kẹt khi Server Render đang thức dậy
-local function safeHttpGet(url, retries)
-local maxAttempts = retries or 2
-for attempt = 1, maxAttempts do
-local ok, res = pcall(function()
-return game:HttpGet(url)
-end)
-if ok and type(res) == "string" and res ~= "" then
-return true, res
+-- Hàm kiểm tra chuỗi hợp lệ (Không dùng dấu ngã để chống lỗi trình soạn thảo xóa ký tự)
+local function isNonEmptyStr(s)
+return type(s) == "string" and not (s == "")
 end
+-- Hàm mã hóa URL an toàn tuyệt đối (Không dùng ký tự ~ dễ bị mất khi copy)
+local function url_encode(str)
+if not (type(str) == "string") then
+return ""
+end
+local clean = str:gsub("\r\n", "\n")
+local encoded = clean:gsub("([^%w%-%.%_])", function(c)
+return string.format("%%%02X", string.byte(c))
+end)
+return encoded
+end
+-- Hàm gọi HTTP thông minh: Hỗ trợ mọi Executor + Tự động đổi sang Server dự phòng nếu lỗi
+local function safeHttpRequest(url)
 local reqFunc = (syn and syn.request) or (http and http.request) or http_request or request
 if reqFunc then
 local okReq, resp = pcall(function()
-return reqFunc({ Url = url, Method = "GET" })
+return reqFunc({
+Url = url,
+Method = "GET",
+Headers = {
+["Accept"] = "application/json, text/plain, /",
+["Cache-Control"] = "no-cache"
+}
+})
 end)
-if okReq and resp and resp.Body and tostring(resp.Body) ~= "" then
+if okReq and type(resp) == "table" then
+local code = tonumber(resp.StatusCode) or 200
+if code >= 200 and code < 300 and isNonEmptyStr(resp.Body) then
 return true, tostring(resp.Body)
+end
+end
+end
+local okGet, resGet = pcall(function()
+return game:HttpGet(url)
+end)
+if okGet and isNonEmptyStr(resGet) then
+return true, resGet
+end
+return false, nil
+end
+local function apiGet(pathAndQuery, retries)
+local maxAttempts = retries or 2
+for attempt = 1, maxAttempts do
+-- Thử trên API_BASE hiện tại trước
+local ok, body = safeHttpRequest(API_BASE .. pathAndQuery)
+if ok and isNonEmptyStr(body) then
+return true, body
+end
+-- Nếu lỗi, tự động thử sang tên miền còn lại trong API_LIST
+for _, base in ipairs(API_LIST) do
+if not (base == API_BASE) then
+local okBackup, bodyBackup = safeHttpRequest(base .. pathAndQuery)
+if okBackup and isNonEmptyStr(bodyBackup) then
+API_BASE = base
+return true, bodyBackup
+end
 end
 end
 if attempt < maxAttempts then
@@ -68,14 +114,6 @@ task.wait(1.2)
 end
 end
 return false, nil
-end
--- ĐÃ VÁ LỖI CÚ PHÁP (= và %) TRONG HÀM MÃ HÓA URL
-local function url_encode(str)
-if type(str) == "string" then return "" end
-str = str:gsub("\r\n", "\n")
-return (str:gsub("([^%w%-%.%_%])", function(c)
-return string.format("%%%02X", string.byte(c))
-end))
 end
 -- Quản lý lưu trữ HWID, Key & Game gần nhất tự động
 local HWID_FILE = "Biva_HWID.txt"
@@ -90,7 +128,7 @@ elseif game:GetService("RbxAnalyticsService") then
 id = tostring(game:GetService("RbxAnalyticsService"):GetClientId()):gsub("-", ""):sub(1, 16)
 end
 end)
-if not id or id == "" then
+if not isNonEmptyStr(id) then
 id = "BIVA" .. tostring(player.UserId)
 end
 return id:gsub("[^%w%-]", ""):upper()
@@ -100,7 +138,7 @@ pcall(function()
 if isfile and readfile and writefile then
 if isfile(HWID_FILE) then
 local savedHwid = readfile(HWID_FILE):gsub("[^%w%-]", ""):upper()
-if savedHwid ~= "" then
+if isNonEmptyStr(savedHwid) then
 hwid = savedHwid
 else
 writefile(HWID_FILE, hwid)
@@ -137,7 +175,6 @@ end
 if Lighting:FindFirstChild("BivaCyberBlur") then
 Lighting.BivaCyberBlur:Destroy()
 end
--- BẢNG MÀU CYBERPUNK V23 OMEGA TITANIUM (ĐỒNG BỘ WEB V23)
 local Theme = {
 BgDark       = Color3.fromRGB(3, 7, 18),
 BgBottom     = Color3.fromRGB(10, 17, 32),
@@ -155,7 +192,6 @@ Text         = Color3.fromRGB(248, 250, 252),
 TextDim      = Color3.fromRGB(148, 163, 184),
 Stroke       = Color3.fromRGB(30, 52, 88)
 }
--- HIỆU ỨNG KÍNH MỜ HẬU CẢNH (BLUR)
 local Blur = Instance.new("BlurEffect")
 Blur.Name = "BivaCyberBlur"
 Blur.Size = 0
@@ -172,7 +208,6 @@ cleanupAllConnections()
 if Blur and Blur.Parent then Blur:Destroy() end
 if sg and sg.Parent then sg:Destroy() end
 end
--- HIỆU ỨNG SÓNG RIPPLE & HOVER BẤM NÚT MƯỢT 120FPS
 local function AddButtonRipple(btn)
 btn.ClipsDescendants = true
 trackConn(btn.InputBegan:Connect(function(input)
@@ -205,7 +240,6 @@ end)
 end
 end))
 end
--- HÀM KÉO THẢ MƯỢT MÀ 120FPS (CHỐNG TRÔI RA NGOÀI MÀN HÌNH)
 local function MakeDraggable(frame, dragArea)
 local dragging = false
 local dragInput = nil
@@ -242,7 +276,7 @@ startPos.Y.Offset + delta.Y
 end
 end))
 end
--- NÚT THU GỌN NỔI (FLOATING ORB V23)
+-- NÚT THU GỌN NỔI (FLOATING ORB V23.5)
 local FloatBtn = Instance.new("TextButton")
 FloatBtn.Size = UDim2.new(0, 54, 0, 54)
 FloatBtn.Position = UDim2.new(0, 26, 0.5, 0)
@@ -364,7 +398,7 @@ end
 end)
 end
 -- ==========================================
--- HEADER V23 OMEGA
+-- HEADER V23.5 OMEGA
 -- ==========================================
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 64)
@@ -405,10 +439,10 @@ Title.TextSize = 17
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 local VersionBadge = Instance.new("TextLabel")
-VersionBadge.Size = UDim2.new(0, 68, 0, 17)
+VersionBadge.Size = UDim2.new(0, 74, 0, 17)
 VersionBadge.Position = UDim2.new(0, 186, 0, 14)
 VersionBadge.BackgroundColor3 = Color3.new(1, 1, 1)
-VersionBadge.Text = "V23 OMEGA"
+VersionBadge.Text = "V23.5 OMEGA"
 VersionBadge.TextColor3 = Color3.new(1, 1, 1)
 VersionBadge.Font = Enum.Font.GothamBold
 VersionBadge.TextSize = 9
@@ -541,7 +575,6 @@ Instance.new("UICorner", OnlinePill).CornerRadius = UDim.new(0, 8)
 local PillStroke = Instance.new("UIStroke", OnlinePill)
 PillStroke.Color = Color3.fromRGB(28, 92, 76)
 PillStroke.Thickness = 1
--- Vòng lặp 120FPS RenderStepped xoay viền Neon & đo FPS thực tế
 local currentPingStr = "--ms"
 local fpsCount = 0
 local lastFpsTime = os.clock()
@@ -567,7 +600,7 @@ task.spawn(function()
 while isLoaderAlive and sg and sg.Parent do
 if Main.Visible then
 local t0 = os.clock()
-local ok = safeHttpGet(API_BASE .. "/api/public_stats", 1)
+local ok = apiGet("/api/public_stats", 1)
 local ms = math.max(11, math.floor((os.clock() - t0) * 1000))
 if ok and OnlinePill and OnlinePill.Parent then
 currentPingStr = tostring(ms) .. "ms"
@@ -814,7 +847,7 @@ PasteKeyBtn.MouseButton1Click:Connect(function()
 local ok, clip = pcall(function()
 return getclipboard and getclipboard()
 end)
-if ok and type(clip) == "string" and clip:gsub("%s+", "") ~= "" then
+if ok and isNonEmptyStr(clip) and isNonEmptyStr(clip:gsub("%s+", "")) then
 KeyInput.Text = clip:gsub("%s+", "")
 showToast("📋 Đã dán mã Key từ bộ nhớ tạm!", Theme.Success)
 else
@@ -1025,7 +1058,8 @@ end
 SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
 local txt = string.lower(SearchInput.Text)
 for _, item in ipairs(gameBtns) do
-item.btn.Visible = (string.find(item.name, txt, 1, true) ~= nil)
+local found = string.find(item.name, txt, 1, true)
+item.btn.Visible = not (found == nil)
 end
 end)
 BackBtn.MouseButton1Click:Connect(function()
@@ -1064,43 +1098,52 @@ if isFetchingHwidKey then return end
 isFetchingHwidKey = true
 CheckHwidKeyBtn.Text = "⏳ Đang tìm Key..."
 Status.TextColor3 = Theme.AccentNeon
-Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID này trên Server..."
+Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID [" .. hwid .. "] trên Server..."
 task.spawn(function()
-local ok, resp = safeHttpGet(API_BASE .. "/api/search_hwid?hwid=" .. url_encode(hwid), 2)
+local ok, resp = apiGet("/api/search_hwid?hwid=" .. url_encode(hwid), 2)
 isFetchingHwidKey = false
 if CheckHwidKeyBtn and CheckHwidKeyBtn.Parent then
 CheckHwidKeyBtn.Text = "🔍 Tự Lấy Key Đã Mua"
 end
-if ok and resp and resp ~= "" then
+if ok and isNonEmptyStr(resp) then
 local decodeOk, data = pcall(function()
 return HttpService:JSONDecode(resp)
 end)
-if decodeOk and data and data.success and type(data.keys) == "table" and #data.keys > 0 then
+if decodeOk and type(data) == "table" and data.success and type(data.keys) == "table" and #data.keys > 0 then
 local validKey = nil
 for _, k in ipairs(data.keys) do
-if not k.is_expired and k.key then
+local kStr = k.key or k.key_code
+if not k.is_expired and isNonEmptyStr(kStr) then
 validKey = k
+validKey.final_key = kStr
 break
 end
 end
-validKey = validKey or data.keys[1]
-if validKey and validKey.key then
-KeyInput.Text = tostring(validKey.key)
-saveToFile(KEY_FILE, tostring(validKey.key))
+if not validKey then
+local first = data.keys[1]
+if first and isNonEmptyStr(first.key or first.key_code) then
+validKey = first
+validKey.final_key = first.key or first.key_code
+end
+end
+if validKey and isNonEmptyStr(validKey.final_key) then
+local foundCode = tostring(validKey.final_key)
+KeyInput.Text = foundCode
+saveToFile(KEY_FILE, foundCode)
 if validKey.is_expired then
 Status.TextColor3 = Theme.Warning
-Status.Text = "⚠️ Tìm thấy Key [" .. tostring(validKey.key) .. "] nhưng đã hết hạn. Vui lòng gia hạn trên Web!"
+Status.Text = "⚠️ Tìm thấy Key [" .. foundCode .. "] nhưng đã hết hạn. Vui lòng gia hạn trên Web!"
 showToast("⚠️ Key gần nhất của bạn đã hết hạn!", Theme.Warning)
 else
 Status.TextColor3 = Theme.Success
-Status.Text = "✅ Đã tự động điền Key [" .. tostring(validKey.key) .. "] (" .. tostring(validKey.time_left or "Còn hạn") .. ")!"
+Status.Text = "✅ Đã tự động điền Key [" .. foundCode .. "] (" .. tostring(validKey.time_left or "Còn hạn") .. ")!"
 showToast("🎉 Đã tìm thấy & tự điền Key bản quyền!", Theme.Success)
 end
 return
 end
 end
 Status.TextColor3 = Theme.Warning
-Status.Text = "⚠️ Chưa tìm thấy Key nào cho HWID này. Hãy Copy HWID và lên Web mua hoặc nhận Key Free!"
+Status.Text = "⚠️ Chưa tìm thấy Key nào cho HWID [" .. hwid .. "]. Hãy Copy HWID và lên Web mua hoặc nhờ Admin gán HWID!"
 showToast("⚠️ Không tìm thấy Key cho HWID này!", Theme.Warning)
 else
 Status.TextColor3 = Theme.Danger
@@ -1109,7 +1152,6 @@ showToast("❌ Lỗi kết nối máy chủ! Bấm thử lại.", Theme.Danger)
 end
 end)
 end)
--- Đồng bộ trực tiếp với Web V23: Copy link kèm sẵn ?hwid= để mở Web tự điền luôn HWID
 WebLinkBtn.MouseButton1Click:Connect(function()
 local smartUrl = WEB_STORE .. "/?hwid=" .. url_encode(hwid)
 if setclipboard then
@@ -1129,12 +1171,12 @@ Status.Text = "🌐 Web mua Key: " .. smartUrl
 end
 end)
 -- ==========================================
--- LOGIC KÍCH HOẠT SCRIPT (V23 OMEGA FINAL)
+-- LOGIC KÍCH HOẠT SCRIPT (V23.5 OMEGA FINAL)
 -- ==========================================
 local isConnecting = false
 local function triggerActivate()
 if isConnecting or not onPage2 then return end
-local cleanKey = string.gsub(KeyInput.Text, "%s+", "")
+local cleanKey = string.upper(string.gsub(KeyInput.Text, "%s+", ""))
 if cleanKey == "" then
 Status.TextColor3 = Theme.Danger
 Status.Text = "⚠️ Vui lòng nhập mã Key hoặc bấm [🔍 Tự Lấy Key Đã Mua] trước khi Kích Hoạt!"
@@ -1142,6 +1184,7 @@ showToast("⚠️ Bạn chưa nhập mã Key bản quyền!", Theme.Danger)
 shakeElement(KeyBox, KeyStroke)
 return
 end
+KeyInput.Text = cleanKey
 isConnecting = true
 local elapsed = 0
 ActivateBtn.Text = "⏳ ĐANG XÁC THỰC BẢN QUYỀN..."
@@ -1154,13 +1197,13 @@ elapsed = elapsed + 1
 end
 end)
 task.spawn(function()
-local url = API_BASE .. "/api/get_script?key="
+local queryPath = "/api/get_script?key="
 .. url_encode(cleanKey)
 .. "&hwid=" .. url_encode(hwid)
 .. "&game_id=" .. url_encode(selectedGameId)
-local success, code = safeHttpGet(url, 2)
+local success, code = apiGet(queryPath, 2)
 isConnecting = false
-if success and code and code ~= "" then
+if success and isNonEmptyStr(code) then
 if string.find(code, ":Kick%(") or string.find(code, "Kick%(") then
 local kickMsg = code:match('Kick%("([^"]+)"%)') or "❌ Key không hợp lệ hoặc đã hết hạn!"
 ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT NGAY"
