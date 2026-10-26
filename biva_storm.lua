@@ -1,7 +1,7 @@
 -- File: biva_storm.lua
 -- =========================================================
--- ⚡ BIVA STORM | CYBER LOADER UI V8 ULTIMATE
--- Đồng bộ Server V8 • Chuẩn hóa HWID In Hoa • Dual-Endpoint Failover
+-- ⚡ BIVA STORM | CYBER LOADER UI V10 ULTIMATE
+-- Đồng bộ Server V10 • Chuẩn hóa HWID In Hoa • Dual-Endpoint Failover
 -- =========================================================
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -27,6 +27,12 @@ if _G.BivaLoaderV23Cleanup then
 end
 if _G.BivaLoaderV8Cleanup then
     pcall(_G.BivaLoaderV8Cleanup)
+end
+if _G.BivaLoaderV9Cleanup then
+    pcall(_G.BivaLoaderV9Cleanup)
+end
+if _G.BivaLoaderV10Cleanup then
+    pcall(_G.BivaLoaderV10Cleanup)
 end
 
 local Connections = {}
@@ -59,12 +65,12 @@ local function getGuiParent()
     return playerGui
 end
 
--- Hàm kiểm tra chuỗi hợp lệ (Không dùng dấu ngã để chống lỗi trình soạn thảo xóa ký tự)
+-- Hàm kiểm tra chuỗi hợp lệ (Tuyệt đối không dùng dấu ngã để chống lỗi trình soạn thảo xóa ký tự)
 local function isNonEmptyStr(s)
     return type(s) == "string" and not (s == "")
 end
 
--- Chuẩn hóa HWID & Key đồng bộ tuyệt đối với server.py V8
+-- Chuẩn hóa HWID & Key đồng bộ tuyệt đối với server.py V10
 local function normalizeHwidStr(s)
     if not (type(s) == "string") then return "" end
     local clean = s:gsub("%s+", ""):gsub("[^%w%-]", ""):upper()
@@ -73,7 +79,8 @@ end
 
 local function normalizeKeyStr(s)
     if not (type(s) == "string") then return "" end
-    return s:gsub("%s+", ""):upper():sub(1, 64)
+    local clean = s:gsub("%s+", ""):gsub("[^%w%-_]", ""):upper()
+    return clean:sub(1, 64)
 end
 
 -- Mã hóa URL chuẩn RFC 3986
@@ -90,7 +97,12 @@ end
 
 -- Gọi HTTP thông minh: Hỗ trợ mọi Executor + Fix lỗi Header Accept
 local function safeHttpRequest(url)
-    local reqFunc = (syn and syn.request) or (http and http.request) or http_request or request
+    local reqFunc = (syn and syn.request)
+        or (http and http.request)
+        or http_request
+        or request
+        or (fluxus and fluxus.request)
+
     if reqFunc then
         local okReq, resp = pcall(function()
             return reqFunc({
@@ -198,7 +210,7 @@ end
 
 -- Xóa UI & Blur cũ nếu đang tồn tại
 local guiParent = getGuiParent()
-for _, oldUi in ipairs({"BivaLoaderUI", "BivaLoaderUI_V8"}) do
+for _, oldUi in ipairs({"BivaLoaderUI", "BivaLoaderUI_V8", "BivaLoaderUI_V9", "BivaLoaderUI_V10"}) do
     if guiParent:FindFirstChild(oldUi) then
         pcall(function() guiParent[oldUi]:Destroy() end)
     end
@@ -210,7 +222,7 @@ if Lighting:FindFirstChild("BivaCyberBlur") then
     pcall(function() Lighting.BivaCyberBlur:Destroy() end)
 end
 
--- Bảng màu Cyber Blue V8 Ultimate (Không dùng xanh lá, tập trung sắc độ Xanh Dương - Cyan)
+-- Bảng màu Cyber Blue V10 Ultimate (Sắc độ Xanh Dương - Neon Cyan - Royal Indigo)
 local Theme = {
     BgDark = Color3.fromRGB(4, 8, 18),
     BgBottom = Color3.fromRGB(9, 16, 34),
@@ -236,7 +248,7 @@ Blur.Parent = Lighting
 TweenService:Create(Blur, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = 15}):Play()
 
 local sg = Instance.new("ScreenGui")
-sg.Name = "BivaLoaderUI_V8"
+sg.Name = "BivaLoaderUI_V10"
 sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -249,6 +261,8 @@ local function fullCleanup()
 end
 _G.BivaLoaderV23Cleanup = fullCleanup
 _G.BivaLoaderV8Cleanup = fullCleanup
+_G.BivaLoaderV9Cleanup = fullCleanup
+_G.BivaLoaderV10Cleanup = fullCleanup
 
 local function AddButtonRipple(btn)
     btn.ClipsDescendants = true
@@ -288,6 +302,7 @@ local function MakeDraggable(frame, dragArea)
     local dragInput = nil
     local dragStart = nil
     local startPos = nil
+    local lastDragEndTime = 0
 
     trackConn(dragArea.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -312,6 +327,9 @@ local function MakeDraggable(frame, dragArea)
     trackConn(UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging and dragStart and startPos then
             local delta = input.Position - dragStart
+            if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
+                lastDragEndTime = os.clock()
+            end
             TweenService:Create(frame, TweenInfo.new(0.05, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                 Position = UDim2.new(
                     startPos.X.Scale,
@@ -322,9 +340,13 @@ local function MakeDraggable(frame, dragArea)
             }):Play()
         end
     end))
+
+    return function()
+        return (os.clock() - lastDragEndTime) < 0.25
+    end
 end
 
--- NÚT THU GỌN NỔI (FLOATING ORB V8)
+-- NÚT THU GỌN NỔI (FLOATING ORB V10)
 local FloatBtn = Instance.new("TextButton")
 FloatBtn.Size = UDim2.new(0, 54, 0, 54)
 FloatBtn.Position = UDim2.new(0, 26, 0.5, 0)
@@ -340,7 +362,7 @@ Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(1, 0)
 local FloatStroke = Instance.new("UIStroke", FloatBtn)
 FloatStroke.Color = Theme.AccentNeon
 FloatStroke.Thickness = 2.2
-MakeDraggable(FloatBtn, FloatBtn)
+local wasFloatDragged = MakeDraggable(FloatBtn, FloatBtn)
 
 -- KHUNG CHÍNH (MAIN CONTAINER)
 local MAIN_W, MAIN_H = 436, 540
@@ -468,7 +490,7 @@ local function shakeElement(guiObj, strokeObj)
 end
 
 -- ==========================================
--- HEADER V8 ULTIMATE
+-- HEADER V10 ULTIMATE
 -- ==========================================
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 64)
@@ -513,10 +535,10 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
 
 local VersionBadge = Instance.new("TextLabel")
-VersionBadge.Size = UDim2.new(0, 78, 0, 17)
+VersionBadge.Size = UDim2.new(0, 82, 0, 17)
 VersionBadge.Position = UDim2.new(0, 186, 0, 14)
 VersionBadge.BackgroundColor3 = Color3.new(1, 1, 1)
-VersionBadge.Text = "V8 ULTIMATE"
+VersionBadge.Text = "V10 ULTIMATE"
 VersionBadge.TextColor3 = Color3.new(1, 1, 1)
 VersionBadge.Font = Enum.Font.GothamBold
 VersionBadge.TextSize = 9
@@ -532,7 +554,7 @@ local Subtitle = Instance.new("TextLabel")
 Subtitle.Size = UDim2.new(1, -165, 0, 16)
 Subtitle.Position = UDim2.new(0, 68, 0, 35)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "● Hệ thống tự động 24/7 • PayOS V8 Auto"
+Subtitle.Text = "● Hệ thống tự động 24/7 • PayOS V10 Auto"
 Subtitle.TextColor3 = Theme.Accent
 Subtitle.Font = Enum.Font.GothamMedium
 Subtitle.TextSize = 11
@@ -567,7 +589,12 @@ local function toggleMinimize()
     end
 end
 MinBtn.MouseButton1Click:Connect(toggleMinimize)
-FloatBtn.MouseButton1Click:Connect(toggleMinimize)
+FloatBtn.MouseButton1Click:Connect(function()
+    if wasFloatDragged and wasFloatDragged() then
+        return
+    end
+    toggleMinimize()
+end)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 32, 0, 32)
@@ -881,7 +908,7 @@ KeyHeaderLbl.TextXAlignment = Enum.TextXAlignment.Left
 KeyHeaderLbl.Parent = KeyHeaderRow
 
 local KeyReadyPill = Instance.new("TextLabel")
-KeyReadyPill.Size = UDim2.new(0, 76, 0, 16)
+KeyReadyPill.Size = UDim2.new(0, 136, 0, 16)
 KeyReadyPill.Position = UDim2.new(0, 118, 0, 1)
 KeyReadyPill.BackgroundColor3 = Theme.Card
 KeyReadyPill.Text = "Chưa nhập"
@@ -987,7 +1014,7 @@ local ActivateBtn = Instance.new("TextButton")
 ActivateBtn.Size = UDim2.new(1, 0, 0, 48)
 ActivateBtn.Position = UDim2.new(0, 0, 0, 178)
 ActivateBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V8 NGAY"
+ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V10 NGAY"
 ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ActivateBtn.Font = Enum.Font.GothamBlack
 ActivateBtn.TextSize = 14
@@ -1071,12 +1098,36 @@ FooterHint.Font = Enum.Font.GothamMedium
 FooterHint.TextSize = 10
 FooterHint.Parent = Page2
 
+-- Tự động kiểm tra ngầm thời hạn của Key đã lưu khi mở Trang 2
+local function checkSavedKeyValiditySilent()
+    local savedK = normalizeKeyStr(KeyInput.Text)
+    if #savedK < 4 then return end
+    task.spawn(function()
+        local ok, resp = apiGet("/api/verify_key?key=" .. url_encode(savedK) .. "&hwid=" .. url_encode(hwid), 1)
+        if ok and isNonEmptyStr(resp) and KeyReadyPill and KeyReadyPill.Parent then
+            local decOk, data = pcall(function() return HttpService:JSONDecode(resp) end)
+            if decOk and type(data) == "table" and data.success then
+                if data.is_expired then
+                    KeyReadyPill.Text = "⏰ Đã hết hạn"
+                    KeyReadyPill.TextColor3 = Theme.Warning
+                elseif not data.hwid_match then
+                    KeyReadyPill.Text = "🔒 Khác HWID"
+                    KeyReadyPill.TextColor3 = Theme.Danger
+                else
+                    KeyReadyPill.Text = "✓ " .. tostring(data.time_left or "Còn hạn")
+                    KeyReadyPill.TextColor3 = Theme.AccentNeon
+                end
+            end
+        end
+    end)
+end
+
 -- ==========================================
 -- DANH SÁCH GAME & CHUYỂN TRANG MƯỢT
 -- ==========================================
 local lastPlayedGameId = loadSavedFile(GAME_FILE)
 local games = {
-    {name = "Steal an Egg", id = "steal_egg", badge = "V8 ULTIMATE", desc = "Auto Steal V8, Smart Anti-Kick, ESP Radar & Tracer"},
+    {name = "Steal an Egg", id = "steal_egg", badge = "V10 ULTIMATE", desc = "Auto Steal V10, Smart Anti-Kick, ESP Radar & Tracer"},
     {name = "Blox Fruits", id = "blox_fruits", badge = "VIP HUB", desc = "Auto Farm Level, Raid, Sea Events, Auto Mastery"},
 }
 
@@ -1097,6 +1148,7 @@ local function openGamePage(g)
     TweenService:Create(Page2, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
         Position = UDim2.new(0, 0, 0, 0)
     }):Play()
+    checkSavedKeyValiditySilent()
 end
 
 for idx, g in ipairs(games) do
@@ -1238,7 +1290,7 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
     isFetchingHwidKey = true
     CheckHwidKeyBtn.Text = "⏳ Đang tìm Key..."
     Status.TextColor3 = Theme.AccentNeon
-    Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID [" .. hwid .. "] trên Server V8..."
+    Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID [" .. hwid .. "] trên Server V10..."
 
     task.spawn(function()
         local ok, resp = apiGet("/api/search_hwid?hwid=" .. url_encode(hwid), 2)
@@ -1272,10 +1324,14 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
                     KeyInput.Text = foundCode
                     saveToFile(KEY_FILE, foundCode)
                     if validKey.is_expired then
+                        KeyReadyPill.Text = "⏰ Đã hết hạn"
+                        KeyReadyPill.TextColor3 = Theme.Warning
                         Status.TextColor3 = Theme.Warning
                         Status.Text = "⚠️ Tìm thấy Key [" .. foundCode .. "] nhưng đã hết hạn. Vui lòng gia hạn trên Web!"
                         showToast("⚠️ Key gần nhất của bạn đã hết hạn!", Theme.Warning)
                     else
+                        KeyReadyPill.Text = "✓ " .. tostring(validKey.time_left or "Còn hạn")
+                        KeyReadyPill.TextColor3 = Theme.AccentNeon
                         Status.TextColor3 = Theme.AccentNeon
                         Status.Text = "✅ Đã tự động điền Key [" .. foundCode .. "] (" .. tostring(validKey.time_left or "Còn hạn") .. ")!"
                         showToast("🎉 Đã tìm thấy & tự điền Key bản quyền!", Theme.AccentNeon)
@@ -1314,7 +1370,7 @@ WebLinkBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- LOGIC KÍCH HOẠT SCRIPT V8 ULTIMATE
+-- LOGIC KÍCH HOẠT SCRIPT V10 ULTIMATE
 -- ==========================================
 local isConnecting = false
 local function triggerActivate()
@@ -1330,12 +1386,12 @@ local function triggerActivate()
     KeyInput.Text = cleanKey
     isConnecting = true
     local elapsed = 0
-    ActivateBtn.Text = "⏳ ĐANG XÁC THỰC BẢN QUYỀN V8..."
+    ActivateBtn.Text = "⏳ ĐANG XÁC THỰC BẢN QUYỀN V10..."
 
     task.spawn(function()
         while isConnecting and ActivateBtn and ActivateBtn.Parent do
             Status.TextColor3 = Theme.AccentNeon
-            Status.Text = string.format("⚡ Đang kết nối máy chủ BIVA STORM V8 (%ds)...", elapsed)
+            Status.Text = string.format("⚡ Đang kết nối máy chủ BIVA STORM V10 (%ds)...", elapsed)
             task.wait(1)
             elapsed = elapsed + 1
         end
@@ -1355,7 +1411,7 @@ local function triggerActivate()
             if code:sub(1, 1) == "{" then
                 local decOk, errObj = pcall(function() return HttpService:JSONDecode(code) end)
                 local msg = (decOk and type(errObj) == "table" and (errObj.detail or errObj.message)) or "❌ Thao tác quá nhanh, vui lòng thử lại sau vài giây!"
-                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V8 NGAY"
+                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V10 NGAY"
                 Status.TextColor3 = Theme.Danger
                 Status.Text = tostring(msg)
                 showToast(tostring(msg), Theme.Danger)
@@ -1364,7 +1420,7 @@ local function triggerActivate()
 
             if string.find(code, ":Kick%(") or string.find(code, "Kick%(") then
                 local kickMsg = code:match('Kick%("([^"]+)"%)') or "❌ Key không hợp lệ hoặc đã hết hạn!"
-                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V8 NGAY"
+                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V10 NGAY"
                 Status.TextColor3 = Theme.Danger
                 Status.Text = kickMsg
                 showToast(kickMsg, Theme.Danger)
@@ -1374,20 +1430,20 @@ local function triggerActivate()
                 if func then
                     saveToFile(KEY_FILE, cleanKey)
                     Status.TextColor3 = Theme.AccentNeon
-                    Status.Text = "✅ Bản quyền V8 hợp lệ! Đang khởi chạy Script..."
-                    showToast("🎉 Kích hoạt thành công! Đang mở Menu V8...", Theme.AccentNeon)
+                    Status.Text = "✅ Bản quyền V10 hợp lệ! Đang khởi chạy Script..."
+                    showToast("🎉 Kích hoạt thành công! Đang mở Menu V10...", Theme.AccentNeon)
                     task.wait(0.3)
                     closeLoader()
                     task.spawn(func)
                 else
-                    ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V8 NGAY"
+                    ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V10 NGAY"
                     Status.TextColor3 = Theme.Danger
                     Status.Text = "❌ Lỗi thực thi Script: " .. tostring(err)
                     showToast("❌ Lỗi cú pháp Script trả về!", Theme.Danger)
                 end
             end
         else
-            ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V8 NGAY"
+            ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V10 NGAY"
             Status.TextColor3 = Theme.Danger
             Status.Text = "❌ Máy chủ đang thức dậy sau nghỉ ngơi, hãy bấm Kích Hoạt lại ngay!"
             showToast("❌ Lỗi kết nối Server! Hãy bấm lại.", Theme.Danger)
