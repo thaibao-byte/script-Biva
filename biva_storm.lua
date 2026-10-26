@@ -1,7 +1,7 @@
 -- File: biva_storm.lua
 -- =========================================================
--- ⚡ BIVA STORM | CYBER LOADER UI V22 SUPREME
--- Đồng bộ Server V22 • Tự Nhận BIVA_AUTO_KEY • Đổi Máy (Reset HWID) Trực Tiếp Trong Game
+-- ⚡ BIVA STORM | CYBER LOADER UI V25 OMNI
+-- Đồng bộ Server V25 • Tự Nhận BIVA_AUTO_KEY • Đổi Máy (Reset HWID) Trực Tiếp Trong Game
 -- =========================================================
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -22,20 +22,11 @@ local WEB_STORE = "https://bivastorm-web.onrender.com"
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-if _G.BivaLoaderV23Cleanup then
-    pcall(_G.BivaLoaderV23Cleanup)
+if _G.BivaLoaderCleanup then
+    pcall(_G.BivaLoaderCleanup)
 end
-if _G.BivaLoaderV8Cleanup then
-    pcall(_G.BivaLoaderV8Cleanup)
-end
-if _G.BivaLoaderV9Cleanup then
-    pcall(_G.BivaLoaderV9Cleanup)
-end
-if _G.BivaLoaderV10Cleanup then
-    pcall(_G.BivaLoaderV10Cleanup)
-end
-if _G.BivaLoaderV22Cleanup then
-    pcall(_G.BivaLoaderV22Cleanup)
+if _G.BivaLoaderV25Cleanup then
+    pcall(_G.BivaLoaderV25Cleanup)
 end
 
 local Connections = {}
@@ -73,7 +64,7 @@ local function isNonEmptyStr(s)
     return type(s) == "string" and not (s == "")
 end
 
--- Chuẩn hóa HWID & Key đồng bộ tuyệt đối với server.py V22
+-- Chuẩn hóa HWID & Key đồng bộ tuyệt đối với server.py V25
 local function normalizeHwidStr(s)
     if not (type(s) == "string") then return "" end
     local clean = s:gsub("%s+", ""):gsub("[^%w%-]", ""):upper()
@@ -215,7 +206,7 @@ local function saveToFile(fileName, content)
     end)
 end
 
--- Tự động nhận BIVA_AUTO_KEY nếu người chơi copy lệnh kèm sẵn Key từ Web V22
+-- Tự động nhận BIVA_AUTO_KEY nếu người chơi copy lệnh kèm sẵn Key từ Web V25
 local envAutoKey = ""
 pcall(function()
     local genv = (getgenv and getgenv()) or _G
@@ -231,19 +222,20 @@ end
 
 -- Xóa UI & Blur cũ nếu đang tồn tại
 local guiParent = getGuiParent()
-for _, oldUi in ipairs({"BivaLoaderUI", "BivaLoaderUI_V8", "BivaLoaderUI_V9", "BivaLoaderUI_V10", "BivaLoaderUI_V22"}) do
-    if guiParent:FindFirstChild(oldUi) then
-        pcall(function() guiParent[oldUi]:Destroy() end)
-    end
-    if playerGui:FindFirstChild(oldUi) then
-        pcall(function() playerGui[oldUi]:Destroy() end)
-    end
+for _, container in ipairs({guiParent, playerGui}) do
+    pcall(function()
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("ScreenGui") and string.find(child.Name, "^BivaLoaderUI") then
+                child:Destroy()
+            end
+        end
+    end)
 end
 if Lighting:FindFirstChild("BivaCyberBlur") then
     pcall(function() Lighting.BivaCyberBlur:Destroy() end)
 end
 
--- Bảng màu Cyber Blue V22 Supreme (Sắc độ Xanh Dương - Neon Cyan - Royal Indigo)
+-- Bảng màu Cyber Blue V25 Supreme (Sắc độ Xanh Dương - Neon Cyan - Royal Indigo)
 local Theme = {
     BgDark = Color3.fromRGB(4, 8, 18),
     BgBottom = Color3.fromRGB(9, 16, 34),
@@ -269,7 +261,7 @@ Blur.Parent = Lighting
 TweenService:Create(Blur, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = 15}):Play()
 
 local sg = Instance.new("ScreenGui")
-sg.Name = "BivaLoaderUI_V22"
+sg.Name = "BivaLoaderUI_V25"
 sg.ResetOnSpawn = false
 sg.IgnoreGuiInset = true
 sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -280,11 +272,8 @@ local function fullCleanup()
     if Blur and Blur.Parent then Blur:Destroy() end
     if sg and sg.Parent then sg:Destroy() end
 end
-_G.BivaLoaderV23Cleanup = fullCleanup
-_G.BivaLoaderV8Cleanup = fullCleanup
-_G.BivaLoaderV9Cleanup = fullCleanup
-_G.BivaLoaderV10Cleanup = fullCleanup
-_G.BivaLoaderV22Cleanup = fullCleanup
+_G.BivaLoaderCleanup = fullCleanup
+_G.BivaLoaderV25Cleanup = fullCleanup
 
 local function AddButtonRipple(btn)
     btn.ClipsDescendants = true
@@ -352,13 +341,14 @@ local function MakeDraggable(frame, dragArea)
             if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
                 lastDragEndTime = os.clock()
             end
+            local cam = Workspace.CurrentCamera
+            local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+            local absX = vp.X * startPos.X.Scale + startPos.X.Offset + delta.X
+            local absY = vp.Y * startPos.Y.Scale + startPos.Y.Offset + delta.Y
+            local clampedX = math.clamp(absX, 24, math.max(24, vp.X - 24))
+            local clampedY = math.clamp(absY, 24, math.max(24, vp.Y - 24))
             TweenService:Create(frame, TweenInfo.new(0.05, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
+                Position = UDim2.new(0, clampedX, 0, clampedY)
             }):Play()
         end
     end))
@@ -368,7 +358,7 @@ local function MakeDraggable(frame, dragArea)
     end
 end
 
--- NÚT THU GỌN NỔI (FLOATING ORB V22)
+-- NÚT THU GỌN NỔI (FLOATING ORB V25)
 local FloatBtn = Instance.new("TextButton")
 FloatBtn.Size = UDim2.new(0, 54, 0, 54)
 FloatBtn.Position = UDim2.new(0, 26, 0.5, 0)
@@ -512,7 +502,7 @@ local function shakeElement(guiObj, strokeObj)
 end
 
 -- ==========================================
--- HEADER V22 SUPREME
+-- HEADER V25 OMNI
 -- ==========================================
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 64)
@@ -560,7 +550,7 @@ local VersionBadge = Instance.new("TextLabel")
 VersionBadge.Size = UDim2.new(0, 86, 0, 17)
 VersionBadge.Position = UDim2.new(0, 186, 0, 14)
 VersionBadge.BackgroundColor3 = Color3.new(1, 1, 1)
-VersionBadge.Text = "V22 SUPREME"
+VersionBadge.Text = "V25 OMNI"
 VersionBadge.TextColor3 = Color3.new(1, 1, 1)
 VersionBadge.Font = Enum.Font.GothamBold
 VersionBadge.TextSize = 9
@@ -576,7 +566,7 @@ local Subtitle = Instance.new("TextLabel")
 Subtitle.Size = UDim2.new(1, -165, 0, 16)
 Subtitle.Position = UDim2.new(0, 68, 0, 35)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "● Hệ thống tự động 24/7 • PayOS V22 Auto"
+Subtitle.Text = "● Hệ thống tự động 24/7 • PayOS V25 Auto"
 Subtitle.TextColor3 = Theme.Accent
 Subtitle.Font = Enum.Font.GothamMedium
 Subtitle.TextSize = 11
@@ -838,7 +828,7 @@ ScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ScrollLayout.Parent = GameScroll
 
 -- ==========================================
--- TRANG 2: NHẬP KEY & KÍCH HOẠT V22 SUPREME
+-- TRANG 2: NHẬP KEY & KÍCH HOẠT V25 OMNI
 -- ==========================================
 local Page2 = Instance.new("Frame")
 Page2.Size = UDim2.new(1, 0, 1, 0)
@@ -1044,7 +1034,7 @@ local ActivateBtn = Instance.new("TextButton")
 ActivateBtn.Size = UDim2.new(1, 0, 0, 48)
 ActivateBtn.Position = UDim2.new(0, 0, 0, 178)
 ActivateBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V22 NGAY"
+ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V25 NGAY"
 ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ActivateBtn.Font = Enum.Font.GothamBlack
 ActivateBtn.TextSize = 14
@@ -1126,7 +1116,7 @@ local Status = Instance.new("TextLabel")
 Status.Size = UDim2.new(1, -20, 1, -8)
 Status.Position = UDim2.new(0, 10, 0, 4)
 Status.BackgroundTransparency = 1
-Status.Text = "💡 Mẹo V22: Bấm [🔍 Tự Lấy Key] để tự điền Key theo HWID hoặc [🔓 Đổi Máy] nếu bạn chuyển thiết bị mới!"
+Status.Text = "💡 Mẹo V25: Bấm [🔍 Tự Lấy Key] để tự điền Key theo HWID hoặc [🔓 Đổi Máy] nếu bạn chuyển thiết bị mới!"
 Status.TextColor3 = Theme.TextDim
 Status.Font = Enum.Font.GothamMedium
 Status.TextSize = 11
@@ -1143,6 +1133,11 @@ FooterHint.Font = Enum.Font.GothamMedium
 FooterHint.TextSize = 10
 FooterHint.Parent = Page2
 
+local lastVerifiedTimeLeft = ""
+local lastVerifiedTier = ""
+local lastVerifiedNotice = ""
+local lastVerifiedExpire = ""
+
 -- Tự động kiểm tra ngầm thời hạn của Key đã lưu khi mở Trang 2
 local function checkSavedKeyValiditySilent()
     local savedK = normalizeKeyStr(KeyInput.Text)
@@ -1152,14 +1147,29 @@ local function checkSavedKeyValiditySilent()
         if ok and isNonEmptyStr(resp) and KeyReadyPill and KeyReadyPill.Parent then
             local decOk, data = pcall(function() return HttpService:JSONDecode(resp) end)
             if decOk and type(data) == "table" and data.success then
-                if data.is_expired then
+                if isNonEmptyStr(data.time_left) then
+                    lastVerifiedTimeLeft = tostring(data.time_left)
+                end
+                if isNonEmptyStr(data.tier_label) then
+                    lastVerifiedTier = tostring(data.tier_label)
+                end
+                if isNonEmptyStr(data.admin_notice) then
+                    lastVerifiedNotice = tostring(data.admin_notice)
+                end
+                if isNonEmptyStr(data.expire_str or data.expire_date) then
+                    lastVerifiedExpire = tostring(data.expire_str or data.expire_date)
+                end
+                if data.is_banned then
+                    KeyReadyPill.Text = "🚫 Bị khóa"
+                    KeyReadyPill.TextColor3 = Theme.Danger
+                elseif data.is_expired then
                     KeyReadyPill.Text = "⏰ Đã hết hạn"
                     KeyReadyPill.TextColor3 = Theme.Warning
                 elseif not data.hwid_match then
                     KeyReadyPill.Text = "🔒 Khác HWID"
                     KeyReadyPill.TextColor3 = Theme.Danger
                 else
-                    KeyReadyPill.Text = "✓ " .. tostring(data.time_left or "Còn hạn")
+                    KeyReadyPill.Text = "✓ " .. tostring(data.time_left or data.remaining_text or "Còn hạn")
                     KeyReadyPill.TextColor3 = Theme.AccentNeon
                 end
             end
@@ -1172,7 +1182,7 @@ end
 -- ==========================================
 local lastPlayedGameId = loadSavedFile(GAME_FILE)
 local games = {
-    {name = "Steal an Egg", id = "steal_egg", badge = "V22 SUPREME", desc = "Auto Steal V22, Player Avoid, Rare Alert, ESP Radar"},
+    {name = "Steal an Egg", id = "steal_egg", badge = "V25 OMNI", desc = "Auto Steal V25, Player Avoid, Rare Alert, ESP Radar"},
     {name = "Blox Fruits", id = "blox_fruits", badge = "VIP HUB", desc = "Auto Farm Level, Raid, Sea Events, Auto Mastery"},
 }
 
@@ -1340,7 +1350,7 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
     isFetchingHwidKey = true
     CheckHwidKeyBtn.Text = "⏳ Đang tìm..."
     Status.TextColor3 = Theme.AccentNeon
-    Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID [" .. hwid .. "] trên Server V22..."
+    Status.Text = "🔎 Đang kiểm tra Key bản quyền của HWID [" .. hwid .. "] trên Server V25..."
 
     task.spawn(function()
         local ok, resp = apiGet("/api/search_hwid?hwid=" .. url_encode(hwid), 2)
@@ -1356,7 +1366,7 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
                 local validKey = nil
                 for _, k in ipairs(data.keys) do
                     local kStr = normalizeKeyStr(k.key or k.key_code)
-                    if not k.is_expired and isNonEmptyStr(kStr) then
+                    if not k.is_expired and not k.is_banned and isNonEmptyStr(kStr) then
                         validKey = k
                         validKey.final_key = kStr
                         break
@@ -1373,7 +1383,22 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
                     local foundCode = tostring(validKey.final_key)
                     KeyInput.Text = foundCode
                     saveToFile(KEY_FILE, foundCode)
-                    if validKey.is_expired then
+                    if isNonEmptyStr(validKey.time_left) then
+                        lastVerifiedTimeLeft = tostring(validKey.time_left)
+                    end
+                    if isNonEmptyStr(validKey.tier_label) then
+                        lastVerifiedTier = tostring(validKey.tier_label)
+                    end
+                    if isNonEmptyStr(validKey.expire_str) then
+                        lastVerifiedExpire = tostring(validKey.expire_str)
+                    end
+                    if validKey.is_banned then
+                        KeyReadyPill.Text = "🚫 Bị khóa"
+                        KeyReadyPill.TextColor3 = Theme.Danger
+                        Status.TextColor3 = Theme.Danger
+                        Status.Text = "🚫 Key [" .. foundCode .. "] hiện đang bị Admin tạm khóa!"
+                        showToast("🚫 Key này đang bị tạm khóa!", Theme.Danger)
+                    elseif validKey.is_expired then
                         KeyReadyPill.Text = "⏰ Đã hết hạn"
                         KeyReadyPill.TextColor3 = Theme.Warning
                         Status.TextColor3 = Theme.Warning
@@ -1400,7 +1425,7 @@ CheckHwidKeyBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Tính năng V22: Tự mở khóa thiết bị (Reset HWID) ngay trong Loader
+-- Tính năng V25: Tự mở khóa thiết bị (Reset HWID) ngay trong Loader
 local isResettingHwid = false
 ResetHwidBtn.MouseButton1Click:Connect(function()
     if isResettingHwid then return end
@@ -1468,7 +1493,7 @@ WebLinkBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- LOGIC KÍCH HOẠT SCRIPT V22 SUPREME
+-- LOGIC KÍCH HOẠT SCRIPT V25 OMNI
 -- ==========================================
 local isConnecting = false
 local function triggerActivate()
@@ -1484,12 +1509,12 @@ local function triggerActivate()
     KeyInput.Text = cleanKey
     isConnecting = true
     local elapsed = 0
-    ActivateBtn.Text = "⏳ ĐANG XÁC THỰC BẢN QUYỀN V22..."
+    ActivateBtn.Text = "⏳ ĐANG XÁC THỰC BẢN QUYỀN V25..."
 
     task.spawn(function()
         while isConnecting and ActivateBtn and ActivateBtn.Parent do
             Status.TextColor3 = Theme.AccentNeon
-            Status.Text = string.format("⚡ Đang kết nối máy chủ BIVA STORM V22 (%ds)...", elapsed)
+            Status.Text = string.format("⚡ Đang kết nối máy chủ BIVA STORM V25 (%ds)...", elapsed)
             task.wait(1)
             elapsed = elapsed + 1
         end
@@ -1509,7 +1534,7 @@ local function triggerActivate()
             if code:sub(1, 1) == "{" then
                 local decOk, errObj = pcall(function() return HttpService:JSONDecode(code) end)
                 local msg = (decOk and type(errObj) == "table" and (errObj.detail or errObj.message)) or "❌ Thao tác quá nhanh, vui lòng thử lại sau vài giây!"
-                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V22 NGAY"
+                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V25 NGAY"
                 Status.TextColor3 = Theme.Danger
                 Status.Text = tostring(msg)
                 showToast(tostring(msg), Theme.Danger)
@@ -1518,7 +1543,7 @@ local function triggerActivate()
 
             if string.find(code, ":Kick%(") or string.find(code, "Kick%(") then
                 local kickMsg = code:match('Kick%("([^"]+)"%)') or "❌ Key không hợp lệ hoặc đã hết hạn!"
-                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V22 NGAY"
+                ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V25 NGAY"
                 Status.TextColor3 = Theme.Danger
                 Status.Text = kickMsg
                 showToast(kickMsg, Theme.Danger)
@@ -1527,21 +1552,37 @@ local function triggerActivate()
                 local func, err = loadstring(code)
                 if func then
                     saveToFile(KEY_FILE, cleanKey)
+                    _G.BIVA_KEY = cleanKey
+                    _G.SEM_KEY = cleanKey
+                    _G.BIVA_HWID = hwid
+                    _G.BIVA_API_BASE = API_BASE
+                    if isNonEmptyStr(lastVerifiedTimeLeft) then
+                        _G.SEM_TIME = lastVerifiedTimeLeft
+                    end
+                    if isNonEmptyStr(lastVerifiedTier) then
+                        _G.BIVA_TIER = lastVerifiedTier
+                    end
+                    if isNonEmptyStr(lastVerifiedNotice) then
+                        _G.BIVA_ADMIN_MSG = lastVerifiedNotice
+                    end
+                    if isNonEmptyStr(lastVerifiedExpire) then
+                        _G.BIVA_EXPIRE = lastVerifiedExpire
+                    end
                     Status.TextColor3 = Theme.AccentNeon
-                    Status.Text = "✅ Bản quyền V22 hợp lệ! Đang khởi chạy Script..."
-                    showToast("🎉 Kích hoạt thành công! Đang mở Menu V22...", Theme.AccentNeon)
+                    Status.Text = "✅ Bản quyền V25 hợp lệ! Đang khởi chạy Script..."
+                    showToast("🎉 Kích hoạt thành công! Đang mở Menu V25...", Theme.AccentNeon)
                     task.wait(0.3)
                     closeLoader()
                     task.spawn(func)
                 else
-                    ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V22 NGAY"
+                    ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V25 NGAY"
                     Status.TextColor3 = Theme.Danger
                     Status.Text = "❌ Lỗi thực thi Script: " .. tostring(err)
                     showToast("❌ Lỗi cú pháp Script trả về!", Theme.Danger)
                 end
             end
         else
-            ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V22 NGAY"
+            ActivateBtn.Text = "⚡ KÍCH HOẠT SCRIPT V25 NGAY"
             Status.TextColor3 = Theme.Danger
             Status.Text = "❌ Máy chủ đang thức dậy sau nghỉ ngơi, hãy bấm Kích Hoạt lại ngay!"
             showToast("❌ Lỗi kết nối Server! Hãy bấm lại.", Theme.Danger)
