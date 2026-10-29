@@ -13,7 +13,6 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
@@ -1941,7 +1940,6 @@ end
 )
 end
 
--- Hàm tạo đơn PayOS hoặc lấy link Free 20h ngay trong Tab 2
 local function createInGameOrder(pkgInfo)
 if AppState.is_busy then return end
 if pkgInfo.isFree then
