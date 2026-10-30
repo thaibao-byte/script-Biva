@@ -1,8 +1,9 @@
 -- ==============================================================================
--- BIVA STORM | SOVEREIGN CORE LOADER & IN-GAME COMMAND CENTER
+-- BIVA STORM | SOVEREIGN MASTERPIECE LOADER & IN-GAME COMMAND CENTER
 -- Kiến trúc Đồng Bộ Toàn Diện 100% Với BIVA STORM SOVEREIGN CORE:
 --   [+] Tab 1: Kích Hoạt Bản Quyền, Đổi Giftcode Sự Kiện (/api/redeem_giftcode) & Đếm Ngược Real-time
---   [+] Tab 2: Cửa Hàng PayOS In-Game, Đồng Bộ Flash Sale Toàn Server & Áp Mã Voucher (/api/check_voucher)
+--   [+] Tab 2: Cửa Hàng PayOS Chuẩn Giá (Miễn Phí = Vượt Link | 8K = 1 Ngày | 40K = 1 Tuần | 130K = 1 Tháng)
+--             + Khung Chú Thích Cam Kết Bảo Hành Tự Động + Flash Sale & Mã Giảm Giá Voucher
 --   [+] Tab 3: Kho Key Đa Thiết Bị (Multi-Device Slot 📱 X/Y máy), Gán HWID & Đổi Máy (Reset HWID)
 --   [+] Tab 4: Lịch Sử Đơn Hàng & Trung Tâm Gửi Phiếu Hỗ Trợ / Xin Mở Khóa Đổi Máy (/api/support_ticket)
 --   [+] Tab 5: Tiện Ích VIP (FPS Boost, Anti-AFK, Server Hop, FullBright) & 5 Chủ Đề Giao Diện
@@ -34,7 +35,9 @@ local activeEndpointIndex = 1
 local WEB_SHOP_URL = "https://biva-hub.onrender.com/index.html"
 local SAVE_FILE_NAME = "BivaStorm_Sovereign_Config.json"
 local VAULT_FILE_NAME = "BivaStorm_Sovereign_KeyVault.json"
-local VERSION_TAG = "SOVEREIGN CORE"
+local VERSION_TAG = "SOVEREIGN MASTERPIECE"
+
+local DEFAULT_PRICING_FOOTNOTE = "💡 Chú thích: Miễn Phí = Vượt Link (20h) | 8.000đ = 1 Ngày | 40.000đ = 1 Tuần | 130.000đ = 1 Tháng. Mọi gói đều kích hoạt tự động sau 3 giây quét QR, tự khóa bảo vệ theo Mã Máy (HWID), hỗ trợ tự đổi máy miễn phí và cam kết bù giờ 100% khi bảo trì!"
 
 local DEFAULT_GAME_CATALOG = {
 {
@@ -184,8 +187,8 @@ local ThemeBindings = {}
 local function sanitizeHwid(raw)
 if not raw then return "" end
 local s = tostring(raw):gsub("%s+", "")
-s = s:gsub("^[hH][wW][iI][dD][:=%-]*", "")
-s = s:gsub("^[dD][eE][vV][iI][cC][eE][:=%-]*", "")
+s = s:gsub("^[hH][wW][iI][dD][:=-]*", "")
+s = s:gsub("^[dD][eE][vV][iI][cC][eE][:=-]*", "")
 s = s:gsub("[^%w%-_]", ""):upper()
 return s:sub(1, 64)
 end
@@ -193,7 +196,7 @@ end
 local function sanitizeKey(raw)
 if not raw then return "" end
 local s = tostring(raw):gsub("%s+", "")
-s = s:gsub("^[kK][eE][yY][:=%-]*", "")
+s = s:gsub("^[kK][eE][yY][:=-]*", "")
 s = s:gsub("[^%w%-]", ""):upper()
 return s:sub(1, 64)
 end
@@ -202,6 +205,13 @@ local function maskKeyString(k)
 local clean = sanitizeKey(k)
 if #clean <= 6 then return clean end
 return clean:sub(1, 5) .. "••••" .. clean:sub(#clean - 2, #clean)
+end
+
+local function formatCurrencyVND(amount)
+local n = math.max(0, math.floor(tonumber(amount) or 0))
+if n == 0 then return "Miễn Phí" end
+local formatted = tostring(n):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
+return formatted .. "đ"
 end
 
 local function getExecutorName()
@@ -383,6 +393,7 @@ config = loadConfig(),
 sync_revision = 0,
 last_latency_ms = 0,
 admin_notice = "Hệ thống BIVA STORM SOVEREIGN CORE hoạt động ổn định 100%!",
+pricing_footnote = DEFAULT_PRICING_FOOTNOTE,
 maintenance = false,
 is_blacklisted = false,
 blacklist_reason = "",
@@ -413,10 +424,11 @@ note = "",
 can_self_reset = false,
 reset_cooldown_left = "Sẵn sàng"
 },
+-- Bảng giá chuẩn Masterpiece: Miễn Phí = Vượt Link | 8K = 1 Ngày | 40K = 1 Tuần | 130K = 1 Tháng
 package_prices = {
-["1 Ngày"] = 15000,
-["1 Tuần"] = 55000,
-["1 Tháng"] = 135000,
+["1 Ngày"] = 8000,
+["1 Tuần"] = 40000,
+["1 Tháng"] = 130000,
 ["1 Năm VIP"] = 200000,
 ["Vĩnh Viễn"] = 250000
 },
@@ -428,6 +440,12 @@ sync_logs = {},
 is_busy = false,
 watching_order = false,
 minimized = false
+}
+
+local LEGACY_PRICE_MIGRATION = {
+["1 Ngày"] = { 15000, 8000 },
+["1 Tuần"] = { 55000, 40000 },
+["1 Tháng"] = { 135000, 130000 }
 }
 
 local renderSyncLogsUI = function() end
@@ -657,7 +675,7 @@ Name = "ToastContainer",
 BackgroundTransparency = 1,
 AnchorPoint = Vector2.new(0.5, 0),
 Position = UDim2.new(0.5, 0, 0, 16),
-Size = UDim2.new(0, 390, 0, 130),
+Size = UDim2.new(0, 400, 0, 130),
 ZIndex = 120,
 Parent = ScreenGui
 })
@@ -713,17 +731,17 @@ end)
 
 end
 
--- NÚT NỔI THU NHỎ (FLOATING PILL BUTTON)
+-- NÚT NỔI THU NHỎ KÈM ĐỒNG HỒ ĐẾM NGƯỢC LIVE (FLOATING PILL WIDGET)
 local FloatingOrb = Create("TextButton", {
 Name = "FloatingOrb",
 BackgroundColor3 = THEME.BgSurface,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 16, 0.5, 0),
-Size = UDim2.new(0, 148, 0, 40),
+Size = UDim2.new(0, 178, 0, 40),
 Font = Enum.Font.GothamBold,
 Text = "⚡ BIVA SOVEREIGN",
 TextColor3 = THEME.AccentCyan,
-TextSize = 12,
+TextSize = 11.5,
 Visible = false,
 AutoButtonColor = false,
 ZIndex = 95,
@@ -735,13 +753,13 @@ RegisterTheme(FloatingOrb, "BackgroundColor3", "BgSurface")
 RegisterTheme(FloatingOrb, "TextColor3", "AccentCyan")
 MakeDraggable(FloatingOrb, FloatingOrb)
 
--- KHUNG CHÍNH (650 x 440)
+-- KHUNG CHÍNH (660 x 450)
 local MainWindow = Create("Frame", {
 Name = "MainWindow",
 BackgroundColor3 = THEME.BgBase,
 AnchorPoint = Vector2.new(0.5, 0.5),
 Position = UDim2.new(0.5, 0, 0.5, 0),
-Size = UDim2.new(0, 650, 0, 440),
+Size = UDim2.new(0, 660, 0, 450),
 ClipsDescendants = true,
 Parent = ScreenGui
 })
@@ -782,7 +800,7 @@ Parent = BrandBadge
 local HeaderTitle = Create("TextLabel", {
 BackgroundTransparency = 1,
 Position = UDim2.new(0, 50, 0, 7),
-Size = UDim2.new(0, 310, 0, 18),
+Size = UDim2.new(0, 330, 0, 18),
 Font = Enum.Font.GothamBlack,
 Text = "BIVA STORM | " .. VERSION_TAG,
 TextColor3 = THEME.TextMain,
@@ -795,7 +813,7 @@ RegisterTheme(HeaderTitle, "TextColor3", "TextMain")
 local HeaderSub = Create("TextLabel", {
 BackgroundTransparency = 1,
 Position = UDim2.new(0, 50, 0, 26),
-Size = UDim2.new(0, 350, 0, 16),
+Size = UDim2.new(0, 360, 0, 16),
 Font = Enum.Font.GothamMedium,
 Text = "🟢 " .. EXECUTOR_TITLE .. " • REV #0 • Ping: --ms",
 TextColor3 = THEME.AccentCyan,
@@ -878,7 +896,7 @@ RegisterTheme(BroadcastText, "TextColor3", "TextSub")
 local Sidebar = Create("Frame", {
 BackgroundColor3 = THEME.BgSurface,
 Position = UDim2.new(0, 10, 0, 88),
-Size = UDim2.new(0, 156, 1, -98),
+Size = UDim2.new(0, 158, 1, -98),
 Parent = MainWindow
 })
 AddCorner(Sidebar, 12)
@@ -961,8 +979,8 @@ end)
 -- VÙNG NỘI DUNG CHÍNH BÊN PHẢI (CONTENT CONTAINER)
 local ContentArea = Create("Frame", {
 BackgroundColor3 = THEME.BgSurface,
-Position = UDim2.new(0, 174, 0, 88),
-Size = UDim2.new(1, -184, 1, -98),
+Position = UDim2.new(0, 176, 0, 88),
+Size = UDim2.new(1, -186, 1, -98),
 ClipsDescendants = true,
 Parent = MainWindow
 })
@@ -1031,7 +1049,7 @@ return page
 end
 
 createNavTab("auth", "🔑 Kích Hoạt & Game", 1)
-createNavTab("shop", "🛒 Mua Key / Voucher", 2)
+createNavTab("shop", "🛒 Bảng Giá 8K/40K/130K", 2)
 createNavTab("vault", "🛡️ Kho Key & Đổi Máy", 3)
 createNavTab("orders", "🧾 Đơn & Hỗ Trợ", 4)
 createNavTab("utils", "⚙️ Tiện Ích & Theme", 5)
@@ -1048,7 +1066,7 @@ Parent = TabPages.auth
 
 Create("TextLabel", {
 BackgroundTransparency = 1,
-Size = UDim2.new(0.6, 0, 1, 0),
+Size = UDim2.new(0.55, 0, 1, 0),
 Font = Enum.Font.GothamBold,
 Text = "🎮 CHỌN TỰA GAME HỖ TRỢ:",
 TextColor3 = THEME.TextSub,
@@ -1059,8 +1077,8 @@ Parent = GameSelectHeader
 
 local SelectedFeatureTag = Create("TextLabel", {
 BackgroundTransparency = 1,
-Position = UDim2.new(0.4, 0, 0, 0),
-Size = UDim2.new(0.6, 0, 1, 0),
+Position = UDim2.new(0.38, 0, 0, 0),
+Size = UDim2.new(0.62, 0, 1, 0),
 Font = Enum.Font.GothamBold,
 Text = "✨ Full Tính Năng Sovereign",
 TextColor3 = THEME.AccentCyan,
@@ -1077,7 +1095,7 @@ Size = UDim2.new(1, 0, 0, 74),
 Parent = TabPages.auth
 })
 
-local GameGridLayout = Create("UIGridLayout", {
+Create("UIGridLayout", {
 CellPadding = UDim2.new(0, 6, 0, 6),
 CellSize = UDim2.new(0.32, 0, 0, 34),
 SortOrder = Enum.SortOrder.LayoutOrder,
@@ -1415,14 +1433,19 @@ tonumber(meta.executions or 0),
 sigPart,
 notePart
 )
+if AppState.minimized and meta.valid then
+FloatingOrb.Text = "⚡ BIVA • " .. tostring(remText or "VIP")
+else
+FloatingOrb.Text = "⚡ BIVA SOVEREIGN"
+end
 end
 
 -- ==============================================================================
--- 7. XÂY DỰNG TAB 2: CỬA HÀNG PAYOS IN-GAME + FLASH SALE + VOUCHER GIẢM GIÁ
+-- 7. XÂY DỰNG TAB 2: CỬA HÀNG PAYOS (MIỄN PHÍ / 8K / 40K / 130K) + CHÚ THÍCH BẢO HÀNH
 -- ==============================================================================
 local FlashSaleInGameCard = Create("Frame", {
 BackgroundColor3 = Color3.fromRGB(48, 22, 16),
-Size = UDim2.new(1, 0, 0, 32),
+Size = UDim2.new(1, 0, 0, 30),
 Visible = false,
 Parent = TabPages.shop
 })
@@ -1448,7 +1471,7 @@ Parent = FlashSaleInGameCard
 
 local VoucherBar = Create("Frame", {
 BackgroundColor3 = THEME.BgElevated,
-Size = UDim2.new(1, 0, 0, 42),
+Size = UDim2.new(1, 0, 0, 38),
 Parent = TabPages.shop
 })
 AddCorner(VoucherBar, 10)
@@ -1457,25 +1480,25 @@ RegisterTheme(VoucherBar, "BackgroundColor3", "BgElevated")
 
 local VoucherInput = Create("TextBox", {
 BackgroundColor3 = THEME.BgInput,
-Position = UDim2.new(0, 8, 0, 6),
-Size = UDim2.new(1, -138, 0, 30),
+Position = UDim2.new(0, 6, 0, 5),
+Size = UDim2.new(1, -134, 0, 28),
 Font = Enum.Font.Code,
 PlaceholderText = "🏷️ Nhập Mã Giảm Giá (Voucher) nếu có...",
 PlaceholderColor3 = THEME.TextDim,
 Text = "",
 TextColor3 = THEME.AccentCyan,
-TextSize = 12,
+TextSize = 11.5,
 ClearTextOnFocus = false,
 Parent = VoucherBar
 })
-AddCorner(VoucherInput, 8)
+AddCorner(VoucherInput, 7)
 RegisterTheme(VoucherInput, "BackgroundColor3", "BgInput")
 RegisterTheme(VoucherInput, "TextColor3", "AccentCyan")
 
 local ApplyVoucherBtn = Create("TextButton", {
 BackgroundColor3 = THEME.AccentBlue,
-Position = UDim2.new(1, -124, 0, 6),
-Size = UDim2.new(0, 116, 0, 30),
+Position = UDim2.new(1, -122, 0, 5),
+Size = UDim2.new(0, 116, 0, 28),
 Font = Enum.Font.GothamBold,
 Text = "🏷️ Áp Mã",
 TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -1483,25 +1506,50 @@ TextSize = 11.5,
 AutoButtonColor = false,
 Parent = VoucherBar
 })
-AddCorner(ApplyVoucherBtn, 8)
+AddCorner(ApplyVoucherBtn, 7)
 RegisterTheme(ApplyVoucherBtn, "BackgroundColor3", "AccentBlue")
 
 local ShopGrid = Create("Frame", {
 BackgroundTransparency = 1,
-Size = UDim2.new(1, 0, 0, 168),
+Size = UDim2.new(1, 0, 0, 162),
 Parent = TabPages.shop
 })
 
 Create("UIGridLayout", {
 CellPadding = UDim2.new(0, 8, 0, 8),
-CellSize = UDim2.new(0.32, -2, 0, 78),
+CellSize = UDim2.new(0.32, -2, 0, 77),
 SortOrder = Enum.SortOrder.LayoutOrder,
 Parent = ShopGrid
 })
 
+-- KHUNG CHÚ THÍCH NHỎ CAM KẾT BẢO HÀNH & TỰ ĐỘNG DƯỚI BẢNG GIÁ TRONG GAME
+local PricingFootnoteCard = Create("Frame", {
+BackgroundColor3 = THEME.BgElevated,
+Size = UDim2.new(1, 0, 0, 48),
+Parent = TabPages.shop
+})
+AddCorner(PricingFootnoteCard, 9)
+AddStroke(PricingFootnoteCard, "BorderSubtle", 1, 0.45)
+RegisterTheme(PricingFootnoteCard, "BackgroundColor3", "BgElevated")
+
+local PricingFootnoteLbl = Create("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 4),
+Size = UDim2.new(1, -20, 1, -8),
+Font = Enum.Font.GothamMedium,
+Text = AppState.pricing_footnote,
+TextColor3 = THEME.TextSub,
+TextSize = 10,
+TextWrapped = true,
+TextXAlignment = Enum.TextXAlignment.Left,
+TextYAlignment = Enum.TextYAlignment.Center,
+Parent = PricingFootnoteCard
+})
+RegisterTheme(PricingFootnoteLbl, "TextColor3", "TextSub")
+
 local OrderStatusCard = Create("Frame", {
 BackgroundColor3 = THEME.BgInput,
-Size = UDim2.new(1, 0, 0, 82),
+Size = UDim2.new(1, 0, 0, 80),
 Parent = TabPages.shop
 })
 AddCorner(OrderStatusCard, 10)
@@ -1510,7 +1558,7 @@ RegisterTheme(OrderStatusCard, "BackgroundColor3", "BgInput")
 
 local OrderStatusTitle = Create("TextLabel", {
 BackgroundTransparency = 1,
-Position = UDim2.new(0, 10, 0, 6),
+Position = UDim2.new(0, 10, 0, 5),
 Size = UDim2.new(1, -20, 0, 18),
 Font = Enum.Font.GothamBold,
 Text = "🧾 Trạng thái đơn: Chưa có đơn chờ thanh toán",
@@ -1523,12 +1571,12 @@ RegisterTheme(OrderStatusTitle, "TextColor3", "AccentCyan")
 
 local OrderStatusSub = Create("TextLabel", {
 BackgroundTransparency = 1,
-Position = UDim2.new(0, 10, 0, 25),
+Position = UDim2.new(0, 10, 0, 23),
 Size = UDim2.new(1, -20, 0, 20),
 Font = Enum.Font.GothamMedium,
-Text = "Chọn 1 gói bên trên để tạo đơn PayOS gắn sẵn HWID máy bạn.",
+Text = "Chọn gói (Free Vượt Link / 8K / 40K / 130K) bên trên để nhận hoặc tạo đơn QR gắn sẵn HWID.",
 TextColor3 = THEME.TextSub,
-TextSize = 11,
+TextSize = 10.5,
 TextWrapped = true,
 TextXAlignment = Enum.TextXAlignment.Left,
 Parent = OrderStatusCard
@@ -1537,7 +1585,7 @@ RegisterTheme(OrderStatusSub, "TextColor3", "TextSub")
 
 local CheckOrderNowBtn = Create("TextButton", {
 BackgroundColor3 = THEME.BgElevated,
-Position = UDim2.new(0, 10, 0, 49),
+Position = UDim2.new(0, 10, 0, 47),
 Size = UDim2.new(0.48, -12, 0, 26),
 Font = Enum.Font.GothamBold,
 Text = "🔄 Kiểm Tra Đã Chuyển Khoản",
@@ -1552,7 +1600,7 @@ RegisterTheme(CheckOrderNowBtn, "TextColor3", "AccentCyan")
 
 local CopyWebShopBtn = Create("TextButton", {
 BackgroundColor3 = THEME.BgElevated,
-Position = UDim2.new(0.52, 2, 0, 49),
+Position = UDim2.new(0.52, 2, 0, 47),
 Size = UDim2.new(0.48, -12, 0, 26),
 Font = Enum.Font.GothamBold,
 Text = "🌐 Copy Link Web Shop Kèm HWID",
@@ -1571,26 +1619,29 @@ safeCopyClipboard(link)
 showToast("Đã copy Link Web Shop kèm HWID!", false)
 end)
 
+-- BẢNG GIÁ CHUẨN MASTERPIECE: MIỄN PHÍ = VƯỢT LINK | 8K = 1 NGÀY | 40K = 1 TUẦN | 130K = 1 THÁNG
 local PackagesMeta = {
-{ pkg = "Free", title = "🎁 Dùng Thử Free", price = "0đ • 20 Giờ", basePrice = 0, sub = "Vượt Link Web", isFree = true },
-{ pkg = "1 Ngày", title = "⚡ Gói 1 Ngày", price = "15.000đ", basePrice = 15000, sub = "24 Giờ • Duyệt 3s", isFree = false },
-{ pkg = "1 Tuần", title = "🔥 Gói 1 Tuần", price = "55.000đ", basePrice = 55000, sub = "7 Ngày • Tiết kiệm", isFree = false },
-{ pkg = "1 Tháng", title = "💎 Gói 1 Tháng", price = "135.000đ", basePrice = 135000, sub = "30 Ngày • VIP", isFree = false },
-{ pkg = "1 Năm VIP", title = "👑 Gói 1 Năm VIP", price = "200.000đ", basePrice = 200000, sub = "365 Ngày • Siêu rẻ", isFree = false },
-{ pkg = "Vĩnh Viễn", title = "♾️ Gói Vĩnh Viễn", price = "250.000đ", basePrice = 250000, sub = "Trọn Đời • Không Hết Hạn", isFree = false }
+{ pkg = "Free", title = "🎁 Miễn Phí (20h)", price = "Vượt Link", basePrice = 0, sub = "Vượt Link • 20 Giờ", isFree = true },
+{ pkg = "1 Ngày", title = "⚡ Gói 1 Ngày", price = "8.000đ", basePrice = 8000, sub = "24 Giờ • Duyệt QR 3s", isFree = false },
+{ pkg = "1 Tuần", title = "🔥 Gói 1 Tuần", price = "40.000đ", basePrice = 40000, sub = "7 Ngày • Tiết kiệm 29%", isFree = false },
+{ pkg = "1 Tháng", title = "💎 Gói 1 Tháng", price = "130.000đ", basePrice = 130000, sub = "30 Ngày • Tiết kiệm 46%", isFree = false },
+{ pkg = "1 Năm VIP", title = "👑 Gói 1 Năm VIP", price = "200.000đ", basePrice = 200000, sub = "365 Ngày • Siêu Rẻ", isFree = false },
+{ pkg = "Vĩnh Viễn", title = "♾️ Gói Vĩnh Viễn", price = "250.000đ", basePrice = 250000, sub = "Trọn Đời • Lifetime", isFree = false }
 }
 
 local PackagePriceLabels = {}
 
 local function updateShopPricesUI()
+local fsPct = (AppState.flash_sale and AppState.flash_sale.active) and (tonumber(AppState.flash_sale.discount_percent) or 0) or 0
+local effDiscount = math.max(tonumber(AppState.voucher_discount) or 0, fsPct)
 for _, item in ipairs(PackagePriceLabels) do
 if item.basePrice > 0 then
 local dynamicBase = tonumber(AppState.package_prices[item.pkg]) or item.basePrice
 local finalP = dynamicBase
-if AppState.voucher_discount > 0 then
-finalP = math.max(2000, math.floor(dynamicBase * (100 - AppState.voucher_discount) / 100))
+if effDiscount > 0 then
+finalP = math.max(2000, math.floor(dynamicBase * (100 - effDiscount) / 100))
 end
-item.label.Text = tostring(finalP):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "") .. "đ"
+item.label.Text = formatCurrencyVND(finalP)
 end
 end
 end
@@ -1631,7 +1682,6 @@ AddStroke(RefreshVaultBtn, "AccentCyan", 1, 0.4)
 RegisterTheme(RefreshVaultBtn, "BackgroundColor3", "BgElevated")
 RegisterTheme(RefreshVaultBtn, "TextColor3", "AccentCyan")
 
--- Thanh liên kết nhanh Key Tự Do vào HWID hiện tại
 local QuickBindRow = Create("Frame", {
 BackgroundColor3 = THEME.BgElevated,
 Size = UDim2.new(1, 0, 0, 38),
@@ -2018,7 +2068,7 @@ end)
 addUtilityButton("🌐 Đổi Server Ít Người (Server Hop)", function()
 showToast("Đang tìm Server mới ít người...", false)
 task.spawn(function()
-local ok, body = rawHttpCall(
+local ok, _, body = rawHttpCall(
 "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100",
 "GET"
 )
@@ -2260,7 +2310,7 @@ if #combined == 0 then
         Size = UDim2.new(1, -20, 1, 0),
         Position = UDim2.new(0, 10, 0, 0),
         Font = Enum.Font.GothamMedium,
-        Text = "Chưa tìm thấy Key nào gắn với HWID [" .. DEVICE_HWID .. "]. Hãy tạo/mua Key hoặc nhập Key Tự Do ở trên!",
+        Text = "Chưa tìm thấy Key nào gắn với HWID [" .. DEVICE_HWID .. "]. Hãy tạo/mua Key (8K/40K/130K) hoặc nhập Key Tự Do ở trên!",
         TextColor3 = THEME.TextSub,
         TextSize = 11.5,
         TextWrapped = true,
@@ -2481,7 +2531,7 @@ for _, ord in ipairs(orders) do
         Position = UDim2.new(0, 10, 0, 6),
         Size = UDim2.new(0.62, 0, 0, 18),
         Font = Enum.Font.GothamBold,
-        Text = string.format("🧾 %s • %s (%sđ)", oid, pkg, tostring(priceNum)),
+        Text = string.format("🧾 %s • %s (%s)", oid, pkg, formatCurrencyVND(priceNum)),
         TextColor3 = THEME.TextMain,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -2564,6 +2614,10 @@ end
 
     AppState.sync_revision = tonumber(data.sync_revision) or AppState.sync_revision
     AppState.admin_notice = tostring(data.admin_notice or AppState.admin_notice)
+    if data.pricing_footnote and tostring(data.pricing_footnote) ~= "" then
+        AppState.pricing_footnote = tostring(data.pricing_footnote)
+        PricingFootnoteLbl.Text = AppState.pricing_footnote
+    end
     AppState.maintenance = data.maintenance == true
     AppState.is_blacklisted = data.is_blacklisted == true
     AppState.blacklist_reason = tostring(data.blacklist_reason or "")
@@ -2591,7 +2645,11 @@ end
 
     if data.package_prices and type(data.package_prices) == "table" then
         for k, v in pairs(data.package_prices) do
-            AppState.package_prices[k] = tonumber(v) or AppState.package_prices[k]
+            local numVal = tonumber(v) or AppState.package_prices[k]
+            if LEGACY_PRICE_MIGRATION[k] and numVal == LEGACY_PRICE_MIGRATION[k][1] then
+                numVal = LEGACY_PRICE_MIGRATION[k][2]
+            end
+            AppState.package_prices[k] = numVal
         end
         updateShopPricesUI()
     end
@@ -2663,7 +2721,7 @@ end
     if notifyToast then
         showToast("⚠️ Chưa tìm thấy Key còn hạn nào gắn với HWID này!", true)
     end
-    setStatus("💡 Nhập Mã Key, đổi Giftcode hoặc qua tab Mua Key để kích hoạt!", THEME.TextSub)
+    setStatus("💡 Nhập Mã Key, đổi Giftcode hoặc qua tab Bảng Giá (Free / 8K / 40K / 130K) để kích hoạt!", THEME.TextSub)
 end)
 
 
@@ -2774,6 +2832,7 @@ task.spawn(function()
                     MainWindow.Visible = false
                     FloatingOrb.Visible = true
                     AppState.minimized = true
+                    refreshLicenseInspectorUI()
                 end
             end)
         else
@@ -2962,7 +3021,7 @@ end)
 
 end
 
--- Khởi tạo các thẻ gói mua trong Tab 2
+-- Khởi tạo các thẻ gói mua trong Tab 2 (Miễn Phí = Vượt Link | 8K = 1 Ngày | 40K = 1 Tuần | 130K = 1 Tháng)
 for idx, pMeta in ipairs(PackagesMeta) do
 local card = Create("Frame", {
 BackgroundColor3 = THEME.BgElevated,
@@ -2975,20 +3034,20 @@ RegisterTheme(card, "BackgroundColor3", "BgElevated")
 
 Create("TextLabel", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 8, 0, 5),
-    Size = UDim2.new(1, -16, 0, 15),
+    Position = UDim2.new(0, 8, 0, 4),
+    Size = UDim2.new(1, -16, 0, 14),
     Font = Enum.Font.GothamBold,
     Text = pMeta.title,
     TextColor3 = THEME.TextMain,
-    TextSize = 11.5,
+    TextSize = 11,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = card
 })
 
 local priceLbl = Create("TextLabel", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 8, 0, 21),
-    Size = UDim2.new(1, -16, 0, 20),
+    Position = UDim2.new(0, 8, 0, 18),
+    Size = UDim2.new(1, -16, 0, 18),
     Font = Enum.Font.GothamBlack,
     Text = pMeta.price,
     TextColor3 = THEME.AccentCyan,
@@ -2999,12 +3058,25 @@ local priceLbl = Create("TextLabel", {
 RegisterTheme(priceLbl, "TextColor3", "AccentCyan")
 table.insert(PackagePriceLabels, { label = priceLbl, basePrice = pMeta.basePrice, pkg = pMeta.pkg })
 
+Create("TextLabel", {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 8, 0, 35),
+    Size = UDim2.new(1, -16, 0, 13),
+    Font = Enum.Font.GothamMedium,
+    Text = pMeta.sub,
+    TextColor3 = THEME.TextSub,
+    TextSize = 9.5,
+    TextTruncate = Enum.TextTruncate.AtEnd,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = card
+})
+
 local buyBtn = Create("TextButton", {
     BackgroundColor3 = pMeta.isFree and THEME.BgInput or THEME.AccentBlue,
-    Position = UDim2.new(0, 8, 1, -27),
-    Size = UDim2.new(1, -16, 0, 21),
+    Position = UDim2.new(0, 8, 1, -24),
+    Size = UDim2.new(1, -16, 0, 20),
     Font = Enum.Font.GothamBold,
-    Text = pMeta.isFree and "Nhận Link Free ➔" or "Tạo Đơn QR ➔",
+    Text = pMeta.isFree and "Vượt Link ➔" or "Mua Ngay ➔",
     TextColor3 = pMeta.isFree and THEME.AccentCyan or Color3.fromRGB(255, 255, 255),
     TextSize = 10.5,
     AutoButtonColor = false,
@@ -3035,7 +3107,7 @@ buyBtn.MouseButton1Click:Connect(function()
                     showToast("🔑 Đã lấy lại Key Free còn hạn: " .. exK, false)
                     switchTab("auth")
                 else
-                    local msg = (res and (res.message or res.detail)) or "Hãy mở Web Shop để nhận Key Free!"
+                    local msg = (res and (res.message or res.detail)) or "Hãy mở Web Shop để nhận Key Free hoặc mua gói 1 Ngày (8.000đ)!"
                     OrderStatusTitle.Text = "⚠️ " .. tostring(msg)
                     showToast("⚠️ " .. tostring(msg), true)
                 end
@@ -3059,7 +3131,7 @@ buyBtn.MouseButton1Click:Connect(function()
             if res and res.success and res.order_id then
                 local payUrl = (res.checkout_url and res.checkout_url ~= "") and res.checkout_url or (WEB_SHOP_URL .. "?order=" .. urlEncode(res.order_id))
                 safeCopyClipboard(payUrl)
-                OrderStatusTitle.Text = "✅ Mã đơn: " .. tostring(res.order_id) .. " (" .. tostring(res.price or pMeta.basePrice) .. "đ) — Đã Copy Link!"
+                OrderStatusTitle.Text = "✅ Mã đơn: " .. tostring(res.order_id) .. " (" .. formatCurrencyVND(res.price or pMeta.basePrice) .. ") — Đã Copy Link!"
                 OrderStatusSub.Text = "Dán link vừa copy ra trình duyệt để quét QR. Game sẽ tự kích hoạt sau 3 giây khi chuyển khoản xong!"
                 pushSyncLog("ORDER_NEW", "Tạo đơn " .. tostring(res.order_id) .. " (" .. pMeta.pkg .. ")", false)
                 showToast("📋 Đã copy cổng thanh toán đơn " .. tostring(res.order_id) .. "!", false)
@@ -3119,6 +3191,7 @@ local function toggleWindowMinimize()
 AppState.minimized = not AppState.minimized
 MainWindow.Visible = not AppState.minimized
 FloatingOrb.Visible = AppState.minimized
+refreshLicenseInspectorUI()
 end
 
 MinimizeBtn.MouseButton1Click:Connect(toggleWindowMinimize)
@@ -3144,7 +3217,7 @@ end)
 end
 end)
 
--- Bộ đếm ngược thời gian thực mỗi 1 giây trên License Inspector
+-- Bộ đếm ngược thời gian thực mỗi 1 giây trên License Inspector & Floating Orb
 task.spawn(function()
 while ScreenGui and ScreenGui.Parent do
 task.wait(1)
@@ -3184,6 +3257,16 @@ AppState.sync_revision = newRev
 AppState.server_keys = data.keys or {}
 AppState.server_orders = data.orders or {}
 AppState.server_tickets = data.support_tickets or {}
+if data.package_prices and type(data.package_prices) == "table" then
+for k, v in pairs(data.package_prices) do
+local numVal = tonumber(v) or AppState.package_prices[k]
+if LEGACY_PRICE_MIGRATION[k] and numVal == LEGACY_PRICE_MIGRATION[k][1] then
+numVal = LEGACY_PRICE_MIGRATION[k][2]
+end
+AppState.package_prices[k] = numVal
+end
+updateShopPricesUI()
+end
 renderVaultCards()
 renderOrdersCards()
 pushSyncLog("AUTO_SYNC", "Phát hiện cập nhật mới từ Server (Rev #" .. tostring(newRev) .. ")", false)
