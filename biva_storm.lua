@@ -295,8 +295,7 @@ method = method or "GET"
 if httpReq then
 local headers = {
 Accept = "application/json, text/plain, /",
-["Cache-Control"]
-= "no-cache"
+["Cache-Control"] = "no-cache"
 }
 local bodyStr = nil
 if bodyTable then
@@ -356,12 +355,9 @@ voucher_code = "",
 voucher_discount = 0,
 flash_sale = { active = false, discount_percent = 0, title = "", remaining_text = "" },
 package_prices = {
-["1 Ngày"]
-= 8000,
-["1 Tuần"]
-= 40000,
-["1 Tháng"]
-= 130000
+["1 Ngày"] = 8000,
+["1 Tuần"] = 40000,
+["1 Tháng"] = 130000
 },
 key_meta = {
 valid = false,
@@ -775,6 +771,26 @@ AutoButtonColor = false,
 Parent = NavList
 })
 Corner(btn, 8)
+local page = New("ScrollingFrame", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 10),
+Size = UDim2.new(1, -20, 1, -20),
+CanvasSize = UDim2.new(0, 0, 0, 0),
+AutomaticCanvasSize = Enum.AutomaticSize.Y,
+ScrollBarThickness = 3,
+ScrollBarImageColor3 = THEME.Accent,
+Visible = false,
+Parent = ContentArea
+})
+New("UIListLayout", {
+Padding = UDim.new(0, 7),
+SortOrder = Enum.SortOrder.LayoutOrder,
+Parent = page
+})
+btn.MouseButton1Click:Connect(function() switchTab(tabId) end)
+TabButtons[tabId] = btn
+TabPages[tabId] = page
+return page
 end
 createTab("auth", "🔑 Kích Hoạt Key", 1)
 createTab("shop", "🛒 Bảng Giá Key", 2)
@@ -804,7 +820,6 @@ TextXAlignment = Enum.TextXAlignment.Left,
 Parent = NoticeBanner
 })
 BindTheme(NoticeLbl, "TextColor3", "TextSub")
--- Thanh Chọn Game Mục Tiêu V45
 local GameSelectorRow = New("Frame", {
 BackgroundColor3 = THEME.BgElevated,
 Size = UDim2.new(1, 0, 0, 32),
@@ -1578,10 +1593,235 @@ renderVaultUI = function()
 for _, ch in ipairs(VaultList:GetChildren()) do
 if ch:IsA("Frame") then ch:Destroy() end
 end
+local items = {}
+local seen = {}
+for _, k in ipairs(State.keys or {}) do
+local c = cleanKey(k.key_code or k.key)
+if c ~= "" and not seen[c] then
+seen[c] = true
+table.insert(items, k)
+end
+end
+for _, loc in ipairs(loadVault()) do
+local c = cleanKey(loc.key)
+if c ~= "" and not seen[c] then
+seen[c] = true
+table.insert(items, {
+key_code = c,
+package = loc.package or "Đã lưu",
+time_left = "Bấm Nạp để kiểm tra",
+bound_hwid = DEVICE_HWID,
+device_count = 1,
+max_devices = 1
+})
+end
+end
+if #items == 0 then
+local empty = New("Frame", {
+BackgroundColor3 = THEME.BgInput,
+Size = UDim2.new(1, 0, 0, 48),
+Parent = VaultList
+})
+Corner(empty, 8)
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 0),
+Size = UDim2.new(1, -20, 1, 0),
+Font = Enum.Font.GothamMedium,
+Text = "Chưa có Key nào gắn với HWID [" .. DEVICE_HWID .. "]. Hãy chọn gói ở Tab Bảng Giá!",
+TextColor3 = THEME.TextSub,
+TextSize = 11,
+TextWrapped = true,
+Parent = empty
+})
+return
+end
+for idx, item in ipairs(items) do
+local code = cleanKey(item.key_code or item.key)
+local pkg = tostring(item.package or "VIP")
+local left = tostring(item.time_left or "Còn hạn")
+local devCnt = tonumber(item.device_count) or 1
+local maxDev = math.max(1, tonumber(item.max_devices) or 1)
+local row = New("Frame", {
+BackgroundColor3 = THEME.BgInput,
+LayoutOrder = idx,
+Size = UDim2.new(1, 0, 0, 52),
+Parent = VaultList
+})
+Corner(row, 8)
+BindTheme(row, "BackgroundColor3", "BgInput")
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 5),
+Size = UDim2.new(0.55, 0, 0, 18),
+Font = Enum.Font.Code,
+Text = code,
+TextColor3 = THEME.Accent,
+TextSize = 12.5,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 24),
+Size = UDim2.new(0.55, 0, 0, 22),
+Font = Enum.Font.GothamMedium,
+Text = string.format("Gói: %s • ⏳ %s (%d/%d máy)", pkg, left, devCnt, maxDev),
+TextColor3 = THEME.TextSub,
+TextSize = 10,
+TextTruncate = Enum.TextTruncate.AtEnd,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
+local useBtn = New("TextButton", {
+BackgroundColor3 = THEME.Primary,
+Position = UDim2.new(1, -172, 0.5, -13),
+Size = UDim2.new(0, 54, 0, 26),
+Font = Enum.Font.GothamBold,
+Text = "⚡ Nạp",
+TextColor3 = Color3.fromRGB(255, 255, 255),
+TextSize = 10.5,
+AutoButtonColor = false,
+Parent = row
+})
+Corner(useBtn, 6)
+local cpBtn = New("TextButton", {
+BackgroundColor3 = THEME.BgElevated,
+Position = UDim2.new(1, -112, 0.5, -13),
+Size = UDim2.new(0, 44, 0, 26),
+Font = Enum.Font.GothamBold,
+Text = "📋",
+TextColor3 = THEME.TextMain,
+TextSize = 11,
+AutoButtonColor = false,
+Parent = row
+})
+Corner(cpBtn, 6)
+local rstBtn = New("TextButton", {
+BackgroundColor3 = Color3.fromRGB(58, 38, 12),
+Position = UDim2.new(1, -62, 0.5, -13),
+Size = UDim2.new(0, 54, 0, 26),
+Font = Enum.Font.GothamBold,
+Text = "🔓 Đổi",
+TextColor3 = THEME.Warn,
+TextSize = 10.5,
+AutoButtonColor = false,
+Parent = row
+})
+Corner(rstBtn, 6)
+useBtn.MouseButton1Click:Connect(function()
+State.config.saved_key = code
+saveConfig(State.config)
+KeyInput.Text = State.config.hide_key and maskKey(code) or code
+switchTab("auth")
+verifyAndRunScript(code)
+end)
+cpBtn.MouseButton1Click:Connect(function()
+copyClipboard(code)
+showToast("Đã copy Key: " .. code, false)
+end)
+rstBtn.MouseButton1Click:Connect(function()
+targetResetKey = code
+ResetDescLbl.Text = "Bạn muốn gỡ khóa thiết bị hiện tại cho Key [" .. code .. "] để chuyển sang máy mới?"
+ResetModal.Visible = true
+end)
+end
 end
 renderSupportUI = function()
 for _, ch in ipairs(SupportList:GetChildren()) do
 if ch:IsA("Frame") then ch:Destroy() end
+end
+local orders = State.orders or {}
+local tickets = State.tickets or {}
+if #orders == 0 and #tickets == 0 then
+local empty = New("Frame", {
+BackgroundColor3 = THEME.BgInput,
+Size = UDim2.new(1, 0, 0, 44),
+Parent = SupportList
+})
+Corner(empty, 8)
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 0),
+Size = UDim2.new(1, -20, 1, 0),
+Font = Enum.Font.GothamMedium,
+Text = "Chưa có đơn hàng hoặc phiếu hỗ trợ nào trên thiết bị này.",
+TextColor3 = THEME.TextSub,
+TextSize = 11,
+Parent = empty
+})
+return
+end
+local orderIdx = 0
+for _, t in ipairs(tickets) do
+orderIdx = orderIdx + 1
+local isDone = (tostring(t.status) == "resolved")
+local row = New("Frame", {
+BackgroundColor3 = THEME.BgInput,
+LayoutOrder = orderIdx,
+Size = UDim2.new(1, 0, 0, 48),
+Parent = SupportList
+})
+Corner(row, 8)
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 4),
+Size = UDim2.new(1, -20, 0, 16),
+Font = Enum.Font.GothamBold,
+Text = string.format("🎫 [%s] %s", tostring(t.ticket_id or "TK"), isDone and "✓ Đã xử lý" or "⏳ Đang chờ Admin"),
+TextColor3 = isDone and THEME.Ok or THEME.Warn,
+TextSize = 11,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 22),
+Size = UDim2.new(1, -20, 0, 20),
+Font = Enum.Font.GothamMedium,
+Text = tostring(t.admin_reply and t.admin_reply ~= "" and ("Admin: " .. t.admin_reply) or t.message or ""),
+TextColor3 = THEME.TextSub,
+TextSize = 10,
+TextTruncate = Enum.TextTruncate.AtEnd,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
+end
+for _, o in ipairs(orders) do
+orderIdx = orderIdx + 1
+local oid = tostring(o.order_id or "BIVA")
+local pkg = tostring(o.package or "VIP")
+local issued = cleanKey(o.key_code or o.key)
+local isPaid = (tostring(o.status) == "paid")
+local row = New("Frame", {
+BackgroundColor3 = THEME.BgInput,
+LayoutOrder = orderIdx,
+Size = UDim2.new(1, 0, 0, 46),
+Parent = SupportList
+})
+Corner(row, 8)
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 5),
+Size = UDim2.new(0.65, 0, 0, 16),
+Font = Enum.Font.GothamBold,
+Text = string.format("🧾 %s • %s (%s)", oid, pkg, formatVND(o.price or 0)),
+TextColor3 = THEME.TextMain,
+TextSize = 11,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 10, 0, 23),
+Size = UDim2.new(0.65, 0, 0, 16),
+Font = Enum.Font.Code,
+Text = isPaid and ("Key: " .. (issued ~= "" and issued or "Đã cấp")) or "⏳ Chờ thanh toán",
+TextColor3 = isPaid and THEME.Accent or THEME.Warn,
+TextSize = 10,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = row
+})
 end
 end
 local function runOmniSync(showToastMsg, autoRunIfValid)
@@ -1594,6 +1834,72 @@ SubHeaderLbl.Text = "🟡 Server đang thức dậy... Vui lòng đợi vài gi�
 if showToastMsg then showToast("Máy chủ đang khởi động, thử lại sau vài giây!", true) end
 return
 end
+State.sync_rev = tonumber(data.sync_revision) or State.sync_rev
+State.ping = ping
+SubHeaderLbl.Text = string.format("🟢 %s • REV #%d • Ping: %dms", EXECUTOR_NAME, State.sync_rev, ping)
+if data.admin_notice and tostring(data.admin_notice) ~= "" then
+State.admin_notice = tostring(data.admin_notice)
+NoticeLbl.Text = "📢 " .. State.admin_notice
+end
+if data.pricing_footnote and tostring(data.pricing_footnote) ~= "" then
+State.pricing_footnote = tostring(data.pricing_footnote)
+FootnoteLbl.Text = State.pricing_footnote
+end
+if data.package_prices and type(data.package_prices) == "table" then
+for k, v in pairs(data.package_prices) do
+State.package_prices[k] = tonumber(v) or State.package_prices[k]
+end
+refreshPlanPrices()
+end
+if data.flash_sale and type(data.flash_sale) == "table" then
+State.flash_sale = data.flash_sale
+FlashSaleBar.Visible = (State.flash_sale.active == true)
+if State.flash_sale.active then
+FlashSaleLbl.Text = string.format(
+"🔥 %s (Còn %s)",
+tostring(State.flash_sale.title or "FLASH SALE"),
+tostring(State.flash_sale.remaining_text or "Đang diễn ra")
+)
+end
+refreshPlanPrices()
+end
+State.keys = data.keys or {}
+State.orders = data.orders or {}
+State.tickets = data.support_tickets or {}
+renderVaultUI()
+renderSupportUI()
+if data.best_key and type(data.best_key) == "table" then
+local bk = data.best_key
+local code = cleanKey(bk.key_code or bk.key)
+if code ~= "" then
+saveKeyToVault(code, bk.package)
+State.config.saved_key = code
+saveConfig(State.config)
+KeyInput.Text = State.config.hide_key and maskKey(code) or code
+State.key_meta = {
+valid = true,
+key_code = code,
+package = tostring(bk.package or "VIP"),
+bound_hwid = tostring(bk.bound_hwid or bk.hwid or DEVICE_HWID),
+device_count = tonumber(bk.device_count) or 1,
+max_devices = tonumber(bk.max_devices) or 1,
+expire_ts = tonumber(bk.expire) or 0,
+time_left = tostring(bk.time_left or "Còn hạn")
+}
+refreshStatusCard()
+setStatus("✅ Đã nhận diện Key [" .. code .. "] (" .. State.key_meta.package .. ")", THEME.Accent)
+if showToastMsg then showToast("🔑 Đã tìm thấy Key: " .. code, false) end
+if autoRunIfValid and State.config.auto_login and not data.maintenance then
+verifyAndRunScript(code)
+end
+return
+end
+end
+if showToastMsg then
+showToast("Chưa tìm thấy Key còn hạn cho HWID này!", true)
+end
+setStatus("💡 Nhập Key hoặc qua Tab Bảng Giá (Miễn Phí / 8K / 40K / 130K) để kích hoạt!", THEME.TextSub)
+end)
 end
 verifyAndRunScript = function(rawKey)
 if State.busy then return end
@@ -1606,14 +1912,109 @@ setStatus("⚠️ Vui lòng nhập Mã Key hợp lệ trước khi kích hoạt!
 showToast("Vui lòng nhập Mã Key hợp lệ!", true)
 return
 end
+State.busy = true
+ActivateBtn.Text = "⏳ Đang xác thực Key..."
+setStatus("⏳ Đang kiểm tra Key [" .. k .. "] trên Server V45...", THEME.Warn)
+task.spawn(function()
+local vPath = string.format("/api/verify_key?key=%s&hwid=%s&auto_bind=true", urlEncode(k), urlEncode(DEVICE_HWID))
+local vData = apiCall(vPath, "GET")
+if not vData then
+State.busy = false
+ActivateBtn.Text = "⚡ KÍCH HOẠT & MỞ MENU VIP"
+setStatus("❌ Không thể kết nối Server, vui lòng thử lại!", THEME.Err)
+showToast("Lỗi kết nối Server!", true)
+return
 end
--- Khởi tạo 4 thẻ gói trong Tab 2
+if not vData.valid then
+State.busy = false
+ActivateBtn.Text = "⚡ KÍCH HOẠT & MỞ MENU VIP"
+local msg = tostring(vData.detail or vData.message or "Key không hợp lệ hoặc đã hết hạn!")
+setStatus("❌ " .. msg, THEME.Err)
+showToast(msg, true)
+if vData.hwid_match == false then switchTab("vault") end
+return
+end
+local confirmed = cleanKey(vData.key_code or k)
+State.config.saved_key = confirmed
+saveConfig(State.config)
+saveKeyToVault(confirmed, vData.package or "VIP")
+KeyInput.Text = State.config.hide_key and maskKey(confirmed) or confirmed
+State.key_meta = {
+valid = true,
+key_code = confirmed,
+package = tostring(vData.package or "VIP"),
+bound_hwid = tostring(vData.bound_hwid or DEVICE_HWID),
+device_count = tonumber(vData.device_count) or 1,
+max_devices = tonumber(vData.max_devices) or 1,
+expire_ts = tonumber(vData.expire) or 0,
+time_left = tostring(vData.time_left or "Còn hạn")
+}
+refreshStatusCard()
+_G.BIVA_KEY = confirmed
+_G.SEM_KEY = confirmed
+_G.BIVA_HWID = DEVICE_HWID
+_G.SEM_TIME = State.key_meta.time_left
+_G.BIVA_TIER = tostring(vData.tier_label or State.key_meta.package)
+_G.BIVA_ADMIN_MSG = State.admin_notice
+_G.BIVA_EXPIRE = tostring(vData.expire_str or "Đang đồng bộ")
+_G.BIVA_API_BASE = API_BASE
+sendTelemetry(confirmed)
+local gameId = State.config.selected_game or "steal_egg"
+ActivateBtn.Text = "🚀 Đang nạp Script..."
+local sPath = string.format("/api/get_script?key=%s&hwid=%s&game_id=%s", urlEncode(confirmed), urlEncode(DEVICE_HWID), urlEncode(gameId))
+local luaCode = apiCall(sPath, "GET", nil, true)
+State.busy = false
+ActivateBtn.Text = "⚡ KÍCH HOẠT & MỞ MENU VIP"
+if type(luaCode) == "string" and #luaCode > 20 then
+local fn, err = loadstring(luaCode)
+if type(fn) == "function" then
+setStatus("✅ Đã kích hoạt Script V45 thành công!", THEME.Ok)
+showToast("🎉 Đã mở khóa BIVA STORM V45 thành công!", false)
+task.spawn(function() pcall(fn) end)
+task.delay(0.7, function()
+if MainWindow and MainWindow.Parent then
+MainWindow.Visible = false
+FloatingOrb.Visible = true
+State.minimized = true
+refreshStatusCard()
+end
+end)
+else
+setStatus("⚠️ Lỗi biên dịch Script: " .. tostring(err), THEME.Err)
+end
+else
+setStatus("❌ Không tải được Script từ Server!", THEME.Err)
+end
+end)
+end
 local function watchInGameOrder(orderId, pkgName)
 State.config.pending_order_id = orderId
 State.config.pending_package = pkgName
 saveConfig(State.config)
 if State.watching_order then return end
 State.watching_order = true
+task.spawn(function()
+for _ = 1, 100 do
+task.wait(3)
+local oid = State.config.pending_order_id
+if not oid or oid == "" then break end
+local res = apiCall("/api/check_order?order_id=" .. urlEncode(oid), "GET")
+if res and res.status == "paid" and res.key then
+local newK = cleanKey(res.key)
+State.config.pending_order_id = ""
+State.config.saved_key = newK
+saveConfig(State.config)
+saveKeyToVault(newK, pkgName)
+KeyInput.Text = State.config.hide_key and maskKey(newK) or newK
+ShopOrderTitle.Text = "🎉 ĐƠN " .. oid .. " ĐÃ THANH TOÁN! KEY: " .. newK
+showToast("🎉 Đã nhận Key tự động: " .. newK, false)
+switchTab("auth")
+verifyAndRunScript(newK)
+break
+end
+end
+State.watching_order = false
+end)
 end
 for idx, p in ipairs(CorePlans) do
 local card = New("Frame", {
@@ -1624,8 +2025,101 @@ Parent = PlansGrid
 Corner(card, 9)
 Stroke(card, p.isFree and "Accent" or "Primary", 1, 0.55)
 BindTheme(card, "BackgroundColor3", "BgElevated")
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 8, 0, 4),
+Size = UDim2.new(1, -16, 0, 14),
+Font = Enum.Font.GothamBold,
+Text = p.title,
+TextColor3 = THEME.TextMain,
+TextSize = 10.5,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = card
+})
+local pLbl = New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 8, 0, 18),
+Size = UDim2.new(1, -16, 0, 17),
+Font = Enum.Font.GothamBlack,
+Text = p.price,
+TextColor3 = THEME.Accent,
+TextSize = 12,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = card
+})
+BindTheme(pLbl, "TextColor3", "Accent")
+table.insert(PlanPriceLabels, { lbl = pLbl, base = p.base, pkg = p.pkg })
+New("TextLabel", {
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 8, 0, 34),
+Size = UDim2.new(0.62, 0, 0, 14),
+Font = Enum.Font.GothamMedium,
+Text = p.sub,
+TextColor3 = THEME.TextSub,
+TextSize = 9,
+TextTruncate = Enum.TextTruncate.AtEnd,
+TextXAlignment = Enum.TextXAlignment.Left,
+Parent = card
+})
+local actionBtn = New("TextButton", {
+BackgroundColor3 = p.isFree and THEME.BgInput or THEME.Primary,
+Position = UDim2.new(1, -86, 1, -26),
+Size = UDim2.new(0, 78, 0, 20),
+Font = Enum.Font.GothamBold,
+Text = p.isFree and "Vượt Link ➔" or "Mua Ngay ➔",
+TextColor3 = p.isFree and THEME.Accent or Color3.fromRGB(255, 255, 255),
+TextSize = 10,
+AutoButtonColor = false,
+Parent = card
+})
+Corner(actionBtn, 6)
+actionBtn.MouseButton1Click:Connect(function()
+if p.isFree then
+ShopOrderTitle.Text = "⏳ Đang tạo link vượt nhận Key Miễn Phí (20 Giờ)..."
+task.spawn(function()
+local res = apiCall("/api/get_free_link?hwid=" .. urlEncode(DEVICE_HWID) .. "&game=rb", "POST", {
+hwid = DEVICE_HWID,
+game = "rb"
+})
+if res and res.success and res.link then
+copyClipboard(res.link)
+ShopOrderTitle.Text = "✅ Đã Copy Link Vượt Key Free 20 Giờ vào bộ nhớ tạm!"
+ShopOrderSub.Text = "Hãy dán link vừa copy ra trình duyệt (Safari/Chrome) để nhận Key!"
+showToast("📋 Đã copy Link Vượt Key Free!", false)
+elseif res and res.existing_key then
+local ex = cleanKey(res.existing_key)
+State.config.saved_key = ex
+saveConfig(State.config)
+KeyInput.Text = ex
+showToast("🔑 Máy đang có Key Free còn hạn: " .. ex, false)
+switchTab("auth")
+else
+showToast((res and res.message) or "Không thể tạo link lúc này!", true)
 end
--- Các sự kiện nút bấm
+end)
+else
+ShopOrderTitle.Text = "⏳ Đang khởi tạo mã QR cho gói [" .. p.pkg .. "]..."
+task.spawn(function()
+local path = string.format("/api/create_order?game=rb&package=%s&hwid=%s", urlEncode(p.pkg), urlEncode(DEVICE_HWID))
+local res = apiCall(path, "POST", {
+game = "rb",
+package = p.pkg,
+hwid = DEVICE_HWID
+})
+if res and res.success and res.order_id then
+local payLink = (res.checkout_url and res.checkout_url ~= "") and res.checkout_url or (WEB_SHOP_URL .. "?hwid=" .. urlEncode(DEVICE_HWID))
+copyClipboard(payLink)
+ShopOrderTitle.Text = "✅ Đơn " .. tostring(res.order_id) .. " (" .. formatVND(res.price or p.base) .. ") — Đã Copy Link!"
+ShopOrderSub.Text = "Dán link vừa copy ra trình duyệt để quét QR. Game sẽ tự kích hoạt sau 3 giây chuyển khoản!"
+showToast("📋 Đã copy link thanh toán đơn " .. tostring(res.order_id) .. "!", false)
+watchInGameOrder(res.order_id, p.pkg)
+else
+showToast((res and (res.detail or res.message)) or "Lỗi tạo đơn hàng!", true)
+end
+end)
+end
+end)
+end
 ActivateBtn.MouseButton1Click:Connect(function()
 verifyAndRunScript(KeyInput.Text)
 end)
