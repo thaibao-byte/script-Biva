@@ -1,10 +1,10 @@
 -- ==============================================================================
--- BIVA STORM V40 | APEX OMEGA CORE LOADER & IN-GAME COMMAND CENTER
--- Phiên bản Lead Developer (100% Pure Luau, Zero-Bug):
+-- BIVA STORM V45 SUPREME | APEX OMEGA CORE LOADER & IN-GAME COMMAND CENTER
+-- Phiên bản Chủ Dự Án (100% Pure Luau, Zero-Bug):
 -- * Tự động co giãn tỷ lệ (Auto UIScale) chuẩn mọi màn hình Điện thoại & PC
 -- * Chọn Tựa Game trực tiếp (Steal An Egg, Blox Fruits, Fisch, Dead Rails)
 -- * Bảng Giá Chuẩn: Miễn Phí = Vượt Link (20h) | 8.000đ = 1 Ngày | 40.000đ = 1 Tuần | 130.000đ = 1 Tháng
--- * Đồng bộ trực tiếp với Server V40, tự truyền biến sang steal_egg.lua
+-- * Đồng bộ trực tiếp với Server V45, tự truyền biến sang steal_egg.lua
 -- ==============================================================================
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -21,16 +21,16 @@ AnalyticsService = game:GetService("RbxAnalyticsService")
 end)
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 -- ==============================================================================
--- 1. CẤU HÌNH KẾT NỐI & HẰNG SỐ HỆ THỐNG V40
+-- 1. CẤU HÌNH KẾT NỐI & HẰNG SỐ HỆ THỐNG V45
 -- ==============================================================================
 local API_BASE = "https://biva-hub.onrender.com"
 local WEB_SHOP_URL = API_BASE .. "/index.html"
 local LOADER_RAW_URL = "https://raw.githubusercontent.com/thaibao-byte/script-Biva/main/biva_storm.lua"
-local SAVE_FILE_NAME = "BivaStorm_ApexOmega_Config_v40.json"
-local VAULT_FILE_NAME = "BivaStorm_ApexOmega_Vault_v40.json"
+local SAVE_FILE_NAME = "BivaStorm_ApexOmega_Config_v45.json"
+local VAULT_FILE_NAME = "BivaStorm_ApexOmega_Vault_v45.json"
 local DEFAULT_PRICING_FOOTNOTE = "💡 Chú thích: Miễn Phí = Vượt Link (20h) • 8.000đ = 1 Ngày • 40.000đ = 1 Tuần • 130.000đ = 1 Tháng. Mọi gói trả phí đều kích hoạt tự động sau 3 giây quét QR, tự khóa bảo vệ theo Mã Máy (HWID), hỗ trợ tự đổi máy miễn phí và cam kết bù giờ 100% nếu bảo trì."
 local GAME_MODES = {
-{ id = "steal_egg", name = "🥚 Steal An Egg V40" },
+{ id = "steal_egg", name = "🥚 Steal An Egg V45" },
 { id = "blox_fruits", name = "🏴‍☠️ Blox Fruits VIP" },
 { id = "fisch", name = "🐟 Fisch Assistant" },
 { id = "dead_rails", name = "🚂 Dead Rails HUD" }
@@ -205,18 +205,14 @@ pending_package = ""
 }
 pcall(function()
 if type(isfile) == "function" and type(readfile) == "function" then
-if isfile(SAVE_FILE_NAME) then
-local decoded = HttpService:JSONDecode(readfile(SAVE_FILE_NAME))
+for _, fName in ipairs({ SAVE_FILE_NAME, "BivaStorm_ApexOmega_Config_v40.json", "BivaStorm_ApexOmega_Config_v35.json" }) do
+if isfile(fName) then
+local decoded = HttpService:JSONDecode(readfile(fName))
 if type(decoded) == "table" then
 for k, v in pairs(decoded) do
 cfg[k] = v
 end
-end
-elseif isfile("BivaStorm_ApexOmega_Config_v35.json") then
-local decoded = HttpService:JSONDecode(readfile("BivaStorm_ApexOmega_Config_v35.json"))
-if type(decoded) == "table" then
-for k, v in pairs(decoded) do
-cfg[k] = v
+break
 end
 end
 end
@@ -253,9 +249,16 @@ end
 local function loadVault()
 local list = {}
 pcall(function()
-if type(isfile) == "function" and type(readfile) == "function" and isfile(VAULT_FILE_NAME) then
-local dec = HttpService:JSONDecode(readfile(VAULT_FILE_NAME))
-if type(dec) == "table" then list = dec end
+if type(isfile) == "function" and type(readfile) == "function" then
+for _, vFile in ipairs({ VAULT_FILE_NAME, "BivaStorm_ApexOmega_Vault_v40.json", "BivaStorm_ApexOmega_Vault_v35.json" }) do
+if isfile(vFile) then
+local dec = HttpService:JSONDecode(readfile(vFile))
+if type(dec) == "table" then
+list = dec
+break
+end
+end
+end
 end
 end)
 return list
@@ -346,7 +349,7 @@ local State = {
 config = loadConfig(),
 sync_rev = 1,
 ping = 0,
-admin_notice = "Hệ thống BIVA STORM V40 cấp Key tự động 3 giây hoạt động ổn định 100%",
+admin_notice = "Hệ thống BIVA STORM V45 SUPREME cấp Key tự động 3 giây hoạt động ổn định 100%",
 pricing_footnote = DEFAULT_PRICING_FOOTNOTE,
 maintenance = false,
 voucher_code = "",
@@ -391,7 +394,7 @@ end)
 end)
 end
 -- ==============================================================================
--- 5. KHỞI TẠO GIAO DIỆN APEX OMEGA V40 (TỰ CO GIÃN ĐA MÀN HÌNH + SPRING TWEEN)
+-- 5. KHỞI TẠO GIAO DIỆN APEX OMEGA V45 (TỰ CO GIÃN ĐA MÀN HÌNH + SPRING TWEEN)
 -- ==============================================================================
 local GuiParent = nil
 pcall(function()
@@ -528,7 +531,7 @@ AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 14, 0.5, 0),
 Size = UDim2.new(0, 168, 0, 36),
 Font = Enum.Font.GothamBold,
-Text = "⚡ BIVA V40",
+Text = "⚡ BIVA V45",
 TextColor3 = THEME.Accent,
 TextSize = 11.5,
 Visible = false,
@@ -598,7 +601,7 @@ BackgroundTransparency = 1,
 Position = UDim2.new(0, 44, 0, 5),
 Size = UDim2.new(0, 320, 0, 16),
 Font = Enum.Font.GothamBlack,
-Text = "BIVA STORM V40 — APEX OMEGA LOADER",
+Text = "BIVA STORM V45 — APEX OMEGA LOADER",
 TextColor3 = THEME.TextMain,
 TextSize = 13,
 TextXAlignment = Enum.TextXAlignment.Left,
@@ -801,7 +804,7 @@ TextXAlignment = Enum.TextXAlignment.Left,
 Parent = NoticeBanner
 })
 BindTheme(NoticeLbl, "TextColor3", "TextSub")
--- Thanh Chọn Game Mục Tiêu V40
+-- Thanh Chọn Game Mục Tiêu V45
 local GameSelectorRow = New("Frame", {
 BackgroundColor3 = THEME.BgElevated,
 Size = UDim2.new(1, 0, 0, 32),
@@ -825,7 +828,7 @@ BackgroundColor3 = THEME.BgInput,
 Position = UDim2.new(0, 125, 0, 4),
 Size = UDim2.new(1, -133, 0, 24),
 Font = Enum.Font.GothamBold,
-Text = "🥚 Steal An Egg V40 (Bấm để đổi Game)",
+Text = "🥚 Steal An Egg V45 (Bấm để đổi Game)",
 TextColor3 = THEME.Accent,
 TextSize = 10.5,
 AutoButtonColor = false,
@@ -841,7 +844,7 @@ GameModeBtn.Text = gm.name .. " (Bấm để đổi)"
 return
 end
 end
-GameModeBtn.Text = "🥚 Steal An Egg V40 (Bấm để đổi)"
+GameModeBtn.Text = "🥚 Steal An Egg V45 (Bấm để đổi)"
 end
 refreshGameModeLabel()
 GameModeBtn.MouseButton1Click:Connect(function()
@@ -1047,7 +1050,7 @@ BackgroundTransparency = 1,
 Position = UDim2.new(0, 10, 0, 5),
 Size = UDim2.new(1, -20, 0, 16),
 Font = Enum.Font.GothamBold,
-Text = "💡 Trạng thái: Đang đồng bộ dữ liệu từ Server V40...",
+Text = "💡 Trạng thái: Đang đồng bộ dữ liệu từ Server V45...",
 TextColor3 = THEME.TextSub,
 TextSize = 11,
 TextTruncate = Enum.TextTruncate.AtEnd,
@@ -1088,7 +1091,7 @@ tonumber(m.max_devices or 1)
 if State.minimized and m.valid then
 FloatingOrb.Text = "⚡ BIVA • " .. tostring(rem or "VIP")
 else
-FloatingOrb.Text = "⚡ BIVA V40"
+FloatingOrb.Text = "⚡ BIVA V45"
 end
 end
 -- ==============================================================================
@@ -1456,12 +1459,12 @@ end)
 end
 local UtilsGrid = New("Frame", {
 BackgroundTransparency = 1,
-Size = UDim2.new(1, 0, 0, 150),
+Size = UDim2.new(1, 0, 0, 190),
 Parent = TabPages.utils
 })
 New("UIGridLayout", {
 CellPadding = UDim2.new(0, 8, 0, 8),
-CellSize = UDim2.new(0.5, -4, 0, 40),
+CellSize = UDim2.new(0.5, -4, 0, 38),
 SortOrder = Enum.SortOrder.LayoutOrder,
 Parent = UtilsGrid
 })
@@ -1512,6 +1515,27 @@ end
 end)
 showToast("🚀 Đã tối ưu FPS mượt mà!", false)
 end)
+addUtilBtn("🌐 Đổi Server Vắng (Hop)", function()
+showToast("🌐 Đang tìm Server vắng người & Ping thấp...", false)
+task.spawn(function()
+local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+local ok, _, body = rawHttp(url, "GET")
+if ok and body then
+local decOk, data = pcall(function() return HttpService:JSONDecode(body) end)
+if decOk and data and type(data.data) == "table" then
+for _, srv in ipairs(data.data) do
+if type(srv) == "table" and tonumber(srv.playing) and tonumber(srv.maxPlayers) then
+if srv.playing >= 1 and srv.playing < (srv.maxPlayers - 2) and srv.id ~= game.JobId then
+TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer)
+return
+end
+end
+end
+end
+end
+TeleportService:Teleport(game.PlaceId, LocalPlayer)
+end)
+end)
 addUtilBtn("🔄 Vào Lại Server (Rejoin)", function()
 showToast("Đang kết nối lại Server...", false)
 TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
@@ -1525,6 +1549,11 @@ end
 local s = string.format('getgenv().BIVA_AUTO_KEY = "%s"; loadstring(game:HttpGet("%s"))()', k, LOADER_RAW_URL)
 copyClipboard(s)
 showToast("⚡ Đã copy Script kèm sẵn Key!", false)
+end)
+addUtilBtn("🌐 Copy Link Web Shop", function()
+local link = WEB_SHOP_URL .. "?hwid=" .. urlEncode(DEVICE_HWID)
+copyClipboard(link)
+showToast("🌐 Đã copy Link Web Shop kèm sẵn HWID!", false)
 end)
 -- ==============================================================================
 -- 11. HÀM ĐỒNG BỘ DỮ LIỆU, NẠP SCRIPT & XỬ LÝ SỰ KIỆN
