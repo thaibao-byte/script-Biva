@@ -1,11 +1,11 @@
 -- ==============================================================================
--- BIVA STORM | APEX OMEGA v4.0 CORE LOADER & IN-GAME COMMAND CENTER
--- Phiên bản Chủ Dự Án (Sovereign v4.0 — 100% Pure Luau, Zero-Bug):
+-- BIVA STORM | ULTRA INSTINCT v5.0 CORE LOADER & IN-GAME COMMAND CENTER
+-- Phiên bản Chủ Dự Án (Ultra Instinct v5.0 — Bản Năng Vô Cực, 100% Pure Luau):
+-- * Giao diện Hào Quang Bản Năng Vô Cực (Ultra Instinct Cosmic Silver-Cyan-Violet)
 -- * Tự động co giãn tỷ lệ (Auto UIScale) chuẩn mọi màn hình Điện thoại & PC
--- * Bảng Giá Chuẩn: Miễn Phí = Vượt Link (20h) | 8.000đ = 1 Ngày | 40.000đ = 1 Tuần | 130.000đ = 1 Tháng
--- * Hỗ trợ nhập & kiểm tra Mã Giảm Giá (Voucher) trực tiếp trong Menu Game
--- * Nhịp tim Telemetry tự động mỗi 60s giữ trạng thái Radar Online thời gian thực
--- * Tự lấy Key theo HWID, Đổi Giftcode, Tự Đổi Máy (Reset HWID), Server Hop & Gửi Hỗ Trợ
+-- * Bảng Giá Chuẩn 6 Gói: Miễn Phí (20h) | 8K (1N) | 40K (1T) | 130K (1Th) | 200K (1Năm) | 250K (Vĩnh Viễn)
+-- * Zero-Leak Lifecycle: Tự dọn 100% Connection/Tween khi đóng hoặc chạy lại Script
+-- * Smart Cold-Start Retry + Nhịp tim Telemetry 60s + Đồng bộ Bản Năng Vô Cực sang Hub
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -26,17 +26,33 @@ end)
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
 -- ==============================================================================
--- 1. CẤU HÌNH KẾT NỐI & HẰNG SỐ HỆ THỐNG v4.0
+-- 1. CẤU HÌNH KẾT NỐI & HẰNG SỐ HỆ THỐNG v5.0 [ULTRA INSTINCT]
 -- ==============================================================================
 local API_BASE = "https://biva-hub.onrender.com"
 local WEB_SHOP_URL = API_BASE .. "/index.html"
 local LOADER_RAW_URL = "https://raw.githubusercontent.com/thaibao-byte/script-Biva/main/biva_storm.lua"
-local SAVE_FILE_NAME = "BivaStorm_ApexOmega_Config_v40.json"
-local VAULT_FILE_NAME = "BivaStorm_ApexOmega_Vault_v40.json"
+local SAVE_FILE_NAME = "BivaStorm_UltraInstinct_Config_v50.json"
+local VAULT_FILE_NAME = "BivaStorm_UltraInstinct_Vault_v50.json"
 
-local DEFAULT_PRICING_FOOTNOTE = "💡 Chú thích: Miễn Phí = Vượt Link (20h) • 8.000đ = 1 Ngày • 40.000đ = 1 Tuần • 130.000đ = 1 Tháng. Mọi gói trả phí đều kích hoạt tự động sau 3 giây quét QR, tự khóa bảo vệ theo Mã Máy (HWID), hỗ trợ tự đổi máy miễn phí và cam kết bù giờ 100% nếu bảo trì."
+local DEFAULT_PRICING_FOOTNOTE = "💡 Chú thích: Miễn Phí = Vượt Link (20h) • 8.000đ = 1 Ngày • 40.000đ = 1 Tuần • 130.000đ = 1 Tháng • 200K = 1 Năm • 250K = Vĩnh Viễn. Quét QR duyệt tự động 3 giây, khóa bảo vệ HWID, tự đổi máy miễn phí & bù giờ 100% nếu bảo trì."
 
 local THEMES = {
+UltraInstinct = {
+Name = "Vô Cực",
+BgMain = Color3.fromRGB(5, 6, 17),
+BgCard = Color3.fromRGB(11, 14, 34),
+BgElevated = Color3.fromRGB(19, 24, 54),
+BgInput = Color3.fromRGB(8, 10, 25),
+Accent = Color3.fromRGB(186, 230, 253),
+Primary = Color3.fromRGB(99, 102, 241),
+Purple = Color3.fromRGB(192, 132, 252),
+TextMain = Color3.fromRGB(248, 250, 252),
+TextSub = Color3.fromRGB(186, 205, 235),
+TextMuted = Color3.fromRGB(120, 138, 175),
+Ok = Color3.fromRGB(52, 211, 153),
+Warn = Color3.fromRGB(251, 191, 36),
+Err = Color3.fromRGB(251, 113, 133)
+},
 CyberBlue = {
 Name = "Cyber Blue",
 BgMain = Color3.fromRGB(5, 8, 18),
@@ -87,7 +103,7 @@ Err = Color3.fromRGB(244, 63, 94)
 }
 }
 
-local THEME = THEMES.CyberBlue
+local THEME = THEMES.UltraInstinct
 local ThemeBindings = {}
 
 -- ==============================================================================
@@ -213,13 +229,17 @@ auto_login = true,
 anti_afk = true,
 sound_fx = true,
 hide_key = false,
-theme_id = "CyberBlue",
+ultra_instinct = true,
+theme_id = "UltraInstinct",
 pending_order_id = "",
 pending_package = ""
 }
 pcall(function()
 if type(isfile) == "function" and type(readfile) == "function" then
-local targetFile = isfile(SAVE_FILE_NAME) and SAVE_FILE_NAME or (isfile("BivaStorm_ApexOmega_Config_v35.json") and "BivaStorm_ApexOmega_Config_v35.json" or nil)
+local targetFile = nil
+for _, cand in ipairs({ SAVE_FILE_NAME, "BivaStorm_ApexOmega_Config_v40.json", "BivaStorm_ApexOmega_Config_v35.json" }) do
+if isfile(cand) then targetFile = cand break end
+end
 if targetFile then
 local decoded = HttpService:JSONDecode(readfile(targetFile))
 if type(decoded) == "table" then
@@ -236,6 +256,9 @@ if g and type(g.BIVA_AUTO_KEY) == "string" and #g.BIVA_AUTO_KEY >= 4 then
 cfg.saved_key = cleanKey(g.BIVA_AUTO_KEY)
 else
 cfg.saved_key = cleanKey(cfg.saved_key)
+end
+if g and type(g.BIVA_ULTRA_INSTINCT) == "boolean" then
+cfg.ultra_instinct = g.BIVA_ULTRA_INSTINCT
 end
 end)
 local chosenTheme = THEMES[cfg.theme_id]
@@ -256,9 +279,12 @@ end
 local function loadVault()
 local list = {}
 pcall(function()
-if type(isfile) == "function" and type(readfile) == "function" and isfile(VAULT_FILE_NAME) then
-local dec = HttpService:JSONDecode(readfile(VAULT_FILE_NAME))
+if type(isfile) == "function" and type(readfile) == "function" then
+local vf = isfile(VAULT_FILE_NAME) and VAULT_FILE_NAME or (isfile("BivaStorm_ApexOmega_Vault_v40.json") and "BivaStorm_ApexOmega_Vault_v40.json" or nil)
+if vf then
+local dec = HttpService:JSONDecode(readfile(vf))
 if type(dec) == "table" then list = dec end
+end
 end
 end)
 return list
@@ -328,7 +354,8 @@ end
 
 local function apiCall(path, method, bodyTable, isPlainText)
 local sep = string.find(path, "?", 1, true) and "&" or "?"
-local fullUrl = API_BASE .. path .. sep .. "_t=" .. tostring(math.floor(os.clock() * 1000))
+for attempt = 1, 2 do
+local fullUrl = API_BASE .. path .. sep .. "_t=" .. tostring(math.floor(os.clock() * 1000)) .. tostring(attempt)
 local t0 = os.clock()
 local ok, status, raw = rawHttp(fullUrl, method, bodyTable)
 local ping = math.max(5, math.floor((os.clock() - t0) * 1000))
@@ -343,7 +370,13 @@ if decOk and type(data) == "table" then
 return data, status, ping
 end
 end
-return nil, 0, ping
+if attempt == 1 and (status == 0 or status == 502 or status == 503 or status == 504) then
+task.wait(1.2)
+else
+return nil, status or 0, ping
+end
+end
+return nil, 0, 999
 end
 
 -- ==============================================================================
@@ -353,7 +386,7 @@ local State = {
 config = loadConfig(),
 sync_rev = 1,
 ping = 0,
-admin_notice = "Hệ thống BIVA STORM v4.0 hoạt động ổn định 100%",
+admin_notice = "⚡ BIVA STORM v5.0 [BẢN NĂNG VÔ CỰC] — Phản Xạ 0ms • Duyệt QR 3 Giây!",
 pricing_footnote = DEFAULT_PRICING_FOOTNOTE,
 maintenance = false,
 voucher_code = "",
@@ -363,7 +396,9 @@ flash_sale = { active = false, discount_percent = 0, title = "", remaining_text 
 package_prices = {
 ["1 Ngày"] = 8000,
 ["1 Tuần"] = 40000,
-["1 Tháng"] = 130000
+["1 Tháng"] = 130000,
+["1 Năm VIP"] = 200000,
+["Vĩnh Viễn"] = 250000
 },
 key_meta = {
 valid = false,
@@ -398,8 +433,20 @@ end)
 end
 
 -- ==============================================================================
--- 5. KHỞI TẠO GIAO DIỆN APEX OMEGA v4.0 (TỰ CO GIÃN ĐA MÀN HÌNH + SPRING TWEEN)
+-- 5. KHỞI TẠO GIAO DIỆN ULTRA INSTINCT v5.0 (ZERO-LEAK LIFECYCLE + COSMIC AURA)
 -- ==============================================================================
+local sharedEnv = (type(getgenv) == "function" and getgenv()) or _G
+if type(sharedEnv) == "table" and type(sharedEnv.BIVA_LOADER_CLEANUP) == "function" then
+pcall(sharedEnv.BIVA_LOADER_CLEANUP)
+end
+
+local LoaderAlive = true
+local LoaderConns = {}
+local function trackLoaderConn(conn)
+if conn then table.insert(LoaderConns, conn) end
+return conn
+end
+
 local GuiParent = nil
 pcall(function()
 if type(gethui) == "function" then GuiParent = gethui() end
@@ -421,6 +468,37 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = GuiParent
 
+local function cleanupLoader()
+if not LoaderAlive then return end
+LoaderAlive = false
+for i = #LoaderConns, 1, -1 do
+pcall(function() LoaderConns[i]:Disconnect() end)
+LoaderConns[i] = nil
+end
+table.clear(ThemeBindings)
+if ScreenGui and ScreenGui.Parent then
+pcall(function() ScreenGui:Destroy() end)
+end
+end
+
+if type(sharedEnv) == "table" then
+sharedEnv.BIVA_LOADER_CLEANUP = cleanupLoader
+end
+
+local function pruneThemeBindings()
+local writeIdx = 1
+for readIdx = 1, #ThemeBindings do
+local b = ThemeBindings[readIdx]
+if b and b.inst and b.inst.Parent then
+ThemeBindings[writeIdx] = b
+writeIdx = writeIdx + 1
+end
+end
+for i = writeIdx, #ThemeBindings do
+ThemeBindings[i] = nil
+end
+end
+
 local function BindTheme(inst, prop, key)
 table.insert(ThemeBindings, { inst = inst, prop = prop, key = key })
 pcall(function() inst[prop] = THEME[key] end)
@@ -432,6 +510,7 @@ if not nextTheme then return end
 THEME = nextTheme
 State.config.theme_id = themeId
 saveConfig(State.config)
+pruneThemeBindings()
 for _, b in ipairs(ThemeBindings) do
 if b.inst and b.inst.Parent and THEME[b.key] then
 pcall(function()
@@ -468,7 +547,7 @@ end
 
 local function MakeDraggable(handle, target)
 local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
-handle.InputBegan:Connect(function(input)
+trackLoaderConn(handle.InputBegan:Connect(function(input)
 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 dragging = true
 dragStart = input.Position
@@ -477,18 +556,18 @@ input.Changed:Connect(function()
 if input.UserInputState == Enum.UserInputState.End then dragging = false end
 end)
 end
-end)
-handle.InputChanged:Connect(function(input)
+end))
+trackLoaderConn(handle.InputChanged:Connect(function(input)
 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 dragInput = input
 end
-end)
-UserInputService.InputChanged:Connect(function(input)
-if input == dragInput and dragging then
+end))
+trackLoaderConn(UserInputService.InputChanged:Connect(function(input)
+if input == dragInput and dragging and target and target.Parent then
 local delta = input.Position - dragStart
 target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
-end)
+end))
 end
 
 -- TOAST THÔNG BÁO MƯỢT MÀ
@@ -539,14 +618,14 @@ if item and item.Parent then item:Destroy() end
 end)
 end
 
--- NÚT THU NHỎ NỔI (FLOATING PILL)
+-- NÚT THU NHỎ NỔI (FLOATING PILL — ULTRA INSTINCT AURA)
 local FloatingOrb = New("TextButton", {
 BackgroundColor3 = THEME.BgCard,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 14, 0.5, 0),
-Size = UDim2.new(0, 168, 0, 36),
+Size = UDim2.new(0, 184, 0, 36),
 Font = Enum.Font.GothamBold,
-Text = "⚡ BIVA STORM v4.0",
+Text = "🌌 BIVA v5.0 VÔ CỰC",
 TextColor3 = THEME.Accent,
 TextSize = 11.5,
 Visible = false,
@@ -555,12 +634,26 @@ ZIndex = 95,
 Parent = ScreenGui
 })
 Corner(FloatingOrb, 18)
-Stroke(FloatingOrb, "Accent", 1.4, 0.2)
+local OrbStroke = New("UIStroke", {
+Color = Color3.fromRGB(255, 255, 255),
+Thickness = 1.6,
+Transparency = 0.12,
+ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+Parent = FloatingOrb
+})
+local OrbGradient = New("UIGradient", {
+Color = ColorSequence.new({
+ColorSequenceKeypoint.new(0, Color3.fromRGB(224, 242, 254)),
+ColorSequenceKeypoint.new(0.5, Color3.fromRGB(56, 189, 248)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(192, 132, 252))
+}),
+Parent = OrbStroke
+})
 BindTheme(FloatingOrb, "BackgroundColor3", "BgCard")
 BindTheme(FloatingOrb, "TextColor3", "Accent")
 MakeDraggable(FloatingOrb, FloatingOrb)
 
--- CỬA SỔ CHÍNH (580 x 390) + TỰ CO GIÃN THEO MÀN HÌNH ĐIỆN THOẠI & PC
+-- CỬA SỔ CHÍNH (580 x 390) + HÀO QUANG BẢN NĂNG VÔ CỰC + TỰ CO GIÃN ĐA MÀN HÌNH
 local MainWindow = New("Frame", {
 BackgroundColor3 = THEME.BgMain,
 AnchorPoint = Vector2.new(0.5, 0.5),
@@ -570,8 +663,33 @@ ClipsDescendants = true,
 Parent = ScreenGui
 })
 Corner(MainWindow, 14)
-Stroke(MainWindow, "Accent", 1.4, 0.35)
+local MainStroke = New("UIStroke", {
+Color = Color3.fromRGB(255, 255, 255),
+Thickness = 1.6,
+Transparency = 0.22,
+ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+Parent = MainWindow
+})
+local MainAuraGradient = New("UIGradient", {
+Color = ColorSequence.new({
+ColorSequenceKeypoint.new(0, Color3.fromRGB(241, 245, 249)),
+ColorSequenceKeypoint.new(0.35, Color3.fromRGB(56, 189, 248)),
+ColorSequenceKeypoint.new(0.7, Color3.fromRGB(168, 85, 247)),
+ColorSequenceKeypoint.new(1, Color3.fromRGB(241, 245, 249))
+}),
+Parent = MainStroke
+})
 BindTheme(MainWindow, "BackgroundColor3", "BgMain")
+
+task.spawn(function()
+local rot = 0
+while LoaderAlive and ScreenGui and ScreenGui.Parent do
+rot = (rot + 4) % 360
+if MainAuraGradient and MainAuraGradient.Parent then MainAuraGradient.Rotation = rot end
+if OrbGradient and OrbGradient.Parent then OrbGradient.Rotation = (360 - rot) % 360 end
+task.wait(0.05)
+end
+end)
 
 local WindowScale = New("UIScale", { Scale = 1, Parent = MainWindow })
 
@@ -586,7 +704,7 @@ WindowScale.Scale = math.clamp(s, 0.62, 1)
 end
 updateResponsiveScale()
 if workspace.CurrentCamera then
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveScale)
+trackLoaderConn(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveScale))
 end
 
 -- THANH TIÊU ĐỀ TRÊN CÙNG (HEADER)
@@ -612,7 +730,7 @@ New("TextLabel", {
 BackgroundTransparency = 1,
 Size = UDim2.new(1, 0, 1, 0),
 Font = Enum.Font.GothamBlack,
-Text = "⚡",
+Text = "🌌",
 TextColor3 = Color3.fromRGB(255, 255, 255),
 TextSize = 14,
 Parent = LogoBadge
@@ -621,9 +739,9 @@ Parent = LogoBadge
 local TitleLbl = New("TextLabel", {
 BackgroundTransparency = 1,
 Position = UDim2.new(0, 44, 0, 5),
-Size = UDim2.new(0, 320, 0, 16),
+Size = UDim2.new(0, 336, 0, 16),
 Font = Enum.Font.GothamBlack,
-Text = "BIVA STORM v4.0 — SOVEREIGN LOADER",
+Text = "BIVA STORM v5.0 — BẢN NĂNG VÔ CỰC",
 TextColor3 = THEME.TextMain,
 TextSize = 13,
 TextXAlignment = Enum.TextXAlignment.Left,
@@ -1119,9 +1237,9 @@ tonumber(m.device_count or 0),
 tonumber(m.max_devices or 1)
 )
 if State.minimized and m.valid then
-FloatingOrb.Text = "⚡ BIVA • " .. tostring(rem or "VIP")
+FloatingOrb.Text = "🌌 BIVA • " .. tostring(rem or "VIP")
 else
-FloatingOrb.Text = "⚡ BIVA STORM v4.0"
+FloatingOrb.Text = "🌌 BIVA v5.0 VÔ CỰC"
 end
 end
 
@@ -1192,7 +1310,7 @@ BindTheme(ApplyVoucherBtn, "BackgroundColor3", "Primary")
 
 local PlansGrid = New("Frame", {
 BackgroundTransparency = 1,
-Size = UDim2.new(1, 0, 0, 144),
+Size = UDim2.new(1, 0, 0, 220),
 Parent = TabPages.shop
 })
 New("UIGridLayout", {
@@ -1206,7 +1324,9 @@ local CorePlans = {
 { pkg = "Free", title = "🎁 Dùng Thử (20 Giờ)", price = "Miễn Phí = Vượt Link", base = 0, sub = "Vượt link rút gọn • Khóa 1 HWID", isFree = true },
 { pkg = "1 Ngày", title = "⚡ Gói 1 Ngày (24 Giờ)", price = "8.000đ = 1 Ngày", base = 8000, sub = "Quét QR duyệt 3s • Vào thẳng", isFree = false },
 { pkg = "1 Tuần", title = "🔥 Gói 1 Tuần (7 Ngày)", price = "40.000đ = 1 Tuần", base = 40000, sub = "Tiết kiệm 16.000đ • Tự đổi máy", isFree = false },
-{ pkg = "1 Tháng", title = "💎 Gói 1 Tháng (30 Ngày)", price = "130.000đ = 1 Tháng", base = 130000, sub = "Tiết kiệm 110.000đ • VIP Tối Thượng", isFree = false }
+{ pkg = "1 Tháng", title = "💎 Gói 1 Tháng (30 Ngày)", price = "130.000đ = 1 Tháng", base = 130000, sub = "Tiết kiệm 110.000đ • VIP Tối Thượng", isFree = false },
+{ pkg = "1 Năm VIP", title = "👑 Gói 1 Năm VIP (365N)", price = "200.000đ = 1 Năm VIP", base = 200000, sub = "Siêu tiết kiệm • Ưu tiên Cloud", isFree = false },
+{ pkg = "Vĩnh Viễn", title = "🌌 Vĩnh Viễn (Bản Năng Vô Cực)", price = "250.000đ = Vĩnh Viễn", base = 250000, sub = "Trọn đời • Đặc quyền Vô Cực", isFree = false }
 }
 
 local PlanPriceLabels = {}
@@ -1568,24 +1688,24 @@ Size = UDim2.new(1, -16, 0, 30),
 Parent = ThemeBar
 })
 New("UIGridLayout", {
-CellPadding = UDim2.new(0, 6, 0, 6),
-CellSize = UDim2.new(0.32, 0, 0, 30),
+CellPadding = UDim2.new(0, 5, 0, 5),
+CellSize = UDim2.new(0.25, -4, 0, 30),
 Parent = ThemeGrid
 })
 
-for _, tKey in ipairs({ "CyberBlue", "Emerald", "Amethyst" }) do
+for _, tKey in ipairs({ "UltraInstinct", "CyberBlue", "Emerald", "Amethyst" }) do
 local tMeta = THEMES[tKey]
 local tb = New("TextButton", {
 BackgroundColor3 = tMeta.BgCard,
 Font = Enum.Font.GothamBold,
-Text = "🎨 " .. tMeta.Name,
+Text = (tKey == "UltraInstinct" and "🌌 " or "🎨 ") .. tMeta.Name,
 TextColor3 = tMeta.Accent,
-TextSize = 11,
+TextSize = 10.5,
 AutoButtonColor = false,
 Parent = ThemeGrid
 })
 Corner(tb, 7)
-New("UIStroke", { Color = tMeta.Accent, Thickness = 1, Transparency = 0.4, Parent = tb })
+New("UIStroke", { Color = tMeta.Accent, Thickness = 1, Transparency = 0.35, Parent = tb })
 tb.MouseButton1Click:Connect(function()
 SetTheme(tKey)
 showToast("Đã đổi chủ đề: " .. tMeta.Name, false)
@@ -1594,7 +1714,7 @@ end
 
 local UtilsGrid = New("Frame", {
 BackgroundTransparency = 1,
-Size = UDim2.new(1, 0, 0, 200),
+Size = UDim2.new(1, 0, 0, 246),
 Parent = TabPages.utils
 })
 New("UIGridLayout", {
@@ -1619,6 +1739,17 @@ BindTheme(b, "BackgroundColor3", "BgElevated")
 BindTheme(b, "TextColor3", "TextMain")
 b.MouseButton1Click:Connect(function() fn(b) end)
 end
+
+addUtilBtn("🌌 Bản Năng Vô Cực: " .. ((State.config.ultra_instinct ~= false) and "BẬT" or "TẮT"), function(b)
+State.config.ultra_instinct = not (State.config.ultra_instinct ~= false)
+saveConfig(State.config)
+pcall(function()
+local g = (type(getgenv) == "function") and getgenv() or _G
+if type(g) == "table" then g.BIVA_ULTRA_INSTINCT = State.config.ultra_instinct end
+end)
+b.Text = "🌌 Bản Năng Vô Cực: " .. (State.config.ultra_instinct and "BẬT" or "TẮT")
+showToast("🌌 Chế độ Bản Năng Vô Cực: " .. (State.config.ultra_instinct and "ĐÃ KÍCH HOẠT!" or "Tạm tắt"), false)
+end)
 
 addUtilBtn("⚡ Tự Đăng Nhập: " .. (State.config.auto_login and "BẬT" or "TẮT"), function(b)
 State.config.auto_login = not State.config.auto_login
@@ -1722,6 +1853,7 @@ renderVaultUI = function()
 for _, ch in ipairs(VaultList:GetChildren()) do
 if ch:IsA("Frame") then ch:Destroy() end
 end
+pruneThemeBindings()
 
 local items = {}
 local seen = {}
@@ -2106,8 +2238,13 @@ task.spawn(function()
 
 	pcall(function()
 		local g = (type(getgenv) == "function") and getgenv() or _G
-		if g and vData.session_sig then
-			g.BIVA_SESSION_SIG = tostring(vData.session_sig)
+		if type(g) == "table" then
+			if vData.session_sig then
+				g.BIVA_SESSION_SIG = tostring(vData.session_sig)
+			end
+			g.BIVA_ULTRA_INSTINCT = (State.config.ultra_instinct ~= false)
+			g.BIVA_KEY = confirmed
+			g.BIVA_HWID = DEVICE_HWID
 		end
 	end)
 
@@ -2134,8 +2271,8 @@ task.spawn(function()
 	if type(luaCode) == "string" and #luaCode > 20 then
 		local fn, err = loadstring(luaCode)
 		if type(fn) == "function" then
-			setStatus("✅ Đã kích hoạt Script v4.0 thành công!", THEME.Ok)
-			showToast("🎉 Đã mở khóa BIVA STORM v4.0 thành công!", false)
+			setStatus("✅ Đã kích hoạt Bản Năng Vô Cực v5.0 thành công!", THEME.Ok)
+			showToast("🌌 Đã khai mở BIVA STORM v5.0 [BẢN NĂNG VÔ CỰC]!", false)
 			task.spawn(function() pcall(fn) end)
 			task.delay(0.7, function()
 				if MainWindow and MainWindow.Parent then
@@ -2440,27 +2577,27 @@ end
 
 MinBtn.MouseButton1Click:Connect(toggleMin)
 FloatingOrb.MouseButton1Click:Connect(toggleMin)
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+CloseBtn.MouseButton1Click:Connect(function() cleanupLoader() end)
 
-UserInputService.InputBegan:Connect(function(input, gp)
-if not gp and input.KeyCode == Enum.KeyCode.RightShift then
+trackLoaderConn(UserInputService.InputBegan:Connect(function(input, gp)
+if not gp and input.KeyCode == Enum.KeyCode.RightShift and LoaderAlive then
 toggleMin()
 end
-end)
+end))
 
-LocalPlayer.Idled:Connect(function()
-if State.config.anti_afk then
+trackLoaderConn(LocalPlayer.Idled:Connect(function()
+if LoaderAlive and State.config.anti_afk then
 pcall(function()
 VirtualUser:CaptureController()
 VirtualUser:ClickButton2(Vector2.new())
 end)
 end
-end)
+end))
 
 -- Bộ đếm ngược thời gian thực mỗi giây & Nhịp tim Telemetry 60s
 task.spawn(function()
 local tickCounter = 0
-while ScreenGui and ScreenGui.Parent do
+while LoaderAlive and ScreenGui and ScreenGui.Parent do
 task.wait(1)
 tickCounter = tickCounter + 1
 if State.key_meta.valid and State.key_meta.expire_ts > 0 then
