@@ -125,7 +125,7 @@ local function cleanKey(raw)
 	if not raw then return "" end
 	local s = tostring(raw):gsub("%s+", "")
 	s = s:gsub("^[kK][eE][yY][:=-]*", "")
-	s = s:gsub("[^%w%-]", ""):upper()
+	s = s:gsub("[^%w%-_]", ""):upper()
 	return s:sub(1, 64)
 end
 
@@ -266,6 +266,7 @@ local function loadConfig()
 		local g = (type(getgenv) == "function") and getgenv() or _G
 		if g and type(g.BIVA_AUTO_KEY) == "string" and #g.BIVA_AUTO_KEY >= 4 then
 			cfg.saved_key = cleanKey(g.BIVA_AUTO_KEY)
+			g.BIVA_AUTO_KEY = nil -- xoá key plaintext khỏi môi trường chung để script khác không đọc trộm được
 		else
 			cfg.saved_key = cleanKey(cfg.saved_key)
 		end
@@ -447,6 +448,7 @@ local State = {
 		expire_ts = 0,
 		time_left = "--"
 	},
+	session_sig = "",
 	keys = {},
 	orders = {},
 	tickets = {},
@@ -603,14 +605,12 @@ end
 
 local function MakeDraggable(handle, target)
 	local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
+	local lastDragEndTime = 0
 	trackLoaderConn(handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
 			startPos = target.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then dragging = false end
-			end)
 		end
 	end))
 	trackLoaderConn(handle.InputChanged:Connect(function(input)
@@ -618,12 +618,23 @@ local function MakeDraggable(handle, target)
 			dragInput = input
 		end
 	end))
+	trackLoaderConn(UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end))
 	trackLoaderConn(UserInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragging and target and target.Parent then
+		if input == dragInput and dragging and dragStart and startPos and target and target.Parent then
 			local delta = input.Position - dragStart
+			if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
+				lastDragEndTime = os.clock()
+			end
 			target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 	end))
+	return function()
+		return (os.clock() - lastDragEndTime) < 0.25
+	end
 end
 
 -- TOAST THÔNG BÁO CHUẨN STUDIO
@@ -717,7 +728,7 @@ New("UIGradient", {
 })
 BindTheme(FloatingOrb, "BackgroundColor3", "BgCard")
 BindTheme(FloatingOrb, "TextColor3", "Platinum")
-MakeDraggable(FloatingOrb, FloatingOrb)
+local isOrbDragged = MakeDraggable(FloatingOrb, FloatingOrb)
 
 -- CỬA SỔ CHÍNH (600 x 400) + TỰ CO GIÃN ĐA MÀN HÌNH
 local MainWindow = New("Frame", {
@@ -2036,7 +2047,9 @@ end)
 
 addActionUtilBtn("Kết Nối Lại Server (Rejoin)", function()
 	showToast("Đang kết nối lại máy chủ hiện tại...", false)
-	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+	pcall(function()
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+	end)
 end)
 
 addActionUtilBtn("Đổi Server Ít Người (Hop)", function()
@@ -2048,13 +2061,17 @@ addActionUtilBtn("Đổi Server Ít Người (Hop)", function()
 			if decOk and type(data) == "table" and type(data.data) == "table" then
 				for _, srv in ipairs(data.data) do
 					if type(srv) == "table" and srv.id ~= game.JobId and (tonumber(srv.playing) or 0) < (tonumber(srv.maxPlayers) or 1) then
-						TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer)
-						return
+						local tpOk = pcall(function()
+							TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, LocalPlayer)
+						end)
+						if tpOk then return end
 					end
 				end
 			end
 		end
-		TeleportService:Teleport(game.PlaceId, LocalPlayer)
+		pcall(function()
+			TeleportService:Teleport(game.PlaceId, LocalPlayer)
+		end)
 	end)
 end)
 
@@ -2064,9 +2081,10 @@ addActionUtilBtn("Sao Chép Loader Kèm Key", function()
 		showToast("Chưa có mã Key nào được lưu.", true)
 		return
 	end
-	local s = string.format('getgenv().BIVA_AUTO_KEY = "%s"; loadstring(game:HttpGet("%s"))()', k, LOADER_RAW_URL)
+	local uiFlag = (State.config.ultra_instinct ~= false) and "true" or "false"
+	local s = string.format('getgenv().BIVA_AUTO_KEY = "%s"; getgenv().BIVA_ULTRA_INSTINCT = %s; loadstring(game:HttpGet("%s"))()', k, uiFlag, LOADER_RAW_URL)
 	copyClipboard(s)
-	showToast("Đã sao chép Script kèm sẵn mã Key.", false)
+	showToast("Đã sao chép Script kèm sẵn mã Key & chế độ Ultra Instinct.", false)
 end)
 
 addActionUtilBtn("Sao Chép PlaceId & JobId", function()
@@ -2156,6 +2174,7 @@ renderVaultUI = function()
 		local left = tostring(item.time_left or "Còn hạn")
 		local devCnt = tonumber(item.device_count) or 1
 		local maxDev = math.max(1, tonumber(item.max_devices) or 1)
+		local isPaused = (item.is_paused == true)
 
 		local row = New("Frame", {
 			BackgroundColor3 = THEME.BgInput,
@@ -2170,10 +2189,10 @@ renderVaultUI = function()
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 5),
-			Size = UDim2.new(0.55, 0, 0, 18),
+			Size = UDim2.new(0.46, 0, 0, 18),
 			Font = Enum.Font.Code,
 			Text = code,
-			TextColor3 = THEME.Accent,
+			TextColor3 = isPaused and THEME.Warn or THEME.Accent,
 			TextSize = 12,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
@@ -2182,7 +2201,7 @@ renderVaultUI = function()
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 24),
-			Size = UDim2.new(0.55, 0, 0, 20),
+			Size = UDim2.new(0.46, 0, 0, 20),
 			Font = Enum.Font.GothamMedium,
 			Text = string.format("Gói: %s • %s (%d/%d máy)", pkg, left, devCnt, maxDev),
 			TextColor3 = THEME.TextSub,
@@ -2194,21 +2213,34 @@ renderVaultUI = function()
 
 		local useBtn = New("TextButton", {
 			BackgroundColor3 = THEME.Primary,
-			Position = UDim2.new(1, -172, 0.5, -13),
-			Size = UDim2.new(0, 54, 0, 26),
+			Position = UDim2.new(1, -214, 0.5, -13),
+			Size = UDim2.new(0, 48, 0, 26),
 			Font = Enum.Font.GothamBold,
 			Text = "Nạp",
 			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextSize = 10.5,
+			TextSize = 10,
 			AutoButtonColor = false,
 			Parent = row
 		})
 		Corner(useBtn, 6)
 
+		local pauseBtn = New("TextButton", {
+			BackgroundColor3 = isPaused and Color3.fromRGB(16, 48, 36) or THEME.BgElevated,
+			Position = UDim2.new(1, -162, 0.5, -13),
+			Size = UDim2.new(0, 52, 0, 26),
+			Font = Enum.Font.GothamBold,
+			Text = isPaused and "Mở Key" or "Bảo Lưu",
+			TextColor3 = isPaused and THEME.Ok or THEME.Accent,
+			TextSize = 9.5,
+			AutoButtonColor = false,
+			Parent = row
+		})
+		Corner(pauseBtn, 6)
+
 		local cpBtn = New("TextButton", {
 			BackgroundColor3 = THEME.BgElevated,
-			Position = UDim2.new(1, -112, 0.5, -13),
-			Size = UDim2.new(0, 44, 0, 26),
+			Position = UDim2.new(1, -106, 0.5, -13),
+			Size = UDim2.new(0, 42, 0, 26),
 			Font = Enum.Font.GothamBold,
 			Text = "Copy",
 			TextColor3 = THEME.TextMain,
@@ -2220,12 +2252,12 @@ renderVaultUI = function()
 
 		local rstBtn = New("TextButton", {
 			BackgroundColor3 = Color3.fromRGB(48, 32, 12),
-			Position = UDim2.new(1, -62, 0.5, -13),
-			Size = UDim2.new(0, 54, 0, 26),
+			Position = UDim2.new(1, -60, 0.5, -13),
+			Size = UDim2.new(0, 52, 0, 26),
 			Font = Enum.Font.GothamBold,
 			Text = "Đổi Máy",
 			TextColor3 = THEME.Warn,
-			TextSize = 10,
+			TextSize = 9.5,
 			AutoButtonColor = false,
 			Parent = row
 		})
@@ -2237,6 +2269,26 @@ renderVaultUI = function()
 			KeyInput.Text = State.config.hide_key and maskKey(code) or code
 			switchTab("auth")
 			verifyAndRunScript(code)
+		end)
+
+		pauseBtn.MouseButton1Click:Connect(function()
+			local targetPause = not isPaused
+			showToast(targetPause and ("Đang bảo lưu thời gian Key " .. code .. "...") or ("Đang mở lại Key " .. code .. "..."), false)
+			task.spawn(function()
+				local activeSig = tostring((State.session_sig ~= "" and State.session_sig) or ((type(getgenv) == "function") and getgenv() or _G).BIVA_SESSION_SIG or "")
+				local res = apiCall("/api/toggle_pause_by_key", "POST", {
+					key = code,
+					hwid = DEVICE_HWID,
+					session_sig = activeSig,
+					is_paused = targetPause
+				})
+				if res and res.success then
+					showToast(tostring(res.message or "Đã cập nhật trạng thái bảo lưu Key."), false)
+					runOmniSync(false, false)
+				else
+					showToast(tostring((res and (res.message or res.detail)) or "Không thể đổi trạng thái bảo lưu Key lúc này."), true)
+				end
+			end)
 		end)
 
 		cpBtn.MouseButton1Click:Connect(function()
@@ -2336,7 +2388,7 @@ renderSupportUI = function()
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 5),
-			Size = UDim2.new(0.7, 0, 0, 16),
+			Size = UDim2.new(0.68, 0, 0, 16),
 			Font = Enum.Font.GothamBold,
 			Text = string.format("Đơn #%s • %s (%s)", oid, pkg, formatVND(o.price or 0)),
 			TextColor3 = THEME.TextMain,
@@ -2347,7 +2399,7 @@ renderSupportUI = function()
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 23),
-			Size = UDim2.new(0.7, 0, 0, 16),
+			Size = UDim2.new(0.68, 0, 0, 16),
 			Font = Enum.Font.Code,
 			Text = isPaid and ("Key: " .. (issued ~= "" and issued or "Đã cấp")) or "Đang chờ thanh toán",
 			TextColor3 = isPaid and THEME.Accent or THEME.Warn,
@@ -2355,19 +2407,76 @@ renderSupportUI = function()
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
 		})
+
+		if not isPaid then
+			local cancelOrdBtn = New("TextButton", {
+				BackgroundColor3 = Color3.fromRGB(52, 18, 24),
+				Position = UDim2.new(1, -72, 0.5, -12),
+				Size = UDim2.new(0, 62, 0, 24),
+				Font = Enum.Font.GothamBold,
+				Text = "Huỷ Đơn",
+				TextColor3 = THEME.Err,
+				TextSize = 9.5,
+				AutoButtonColor = false,
+				Parent = row
+			})
+			Corner(cancelOrdBtn, 6)
+			cancelOrdBtn.MouseButton1Click:Connect(function()
+				task.spawn(function()
+					local res = apiCall("/api/cancel_order", "POST", {
+						order_id = oid,
+						hwid = DEVICE_HWID
+					})
+					if res and res.success then
+						if State.config.pending_order_id == oid then
+							State.config.pending_order_id = ""
+							saveConfig(State.config, true)
+						end
+						showToast(tostring(res.message or ("Đã huỷ đơn #" .. oid)), false)
+						runOmniSync(false, false)
+					else
+						showToast(tostring((res and (res.message or res.detail)) or "Không thể huỷ đơn lúc này."), true)
+					end
+				end)
+			end)
+		elseif issued ~= "" then
+			local loadOrdKeyBtn = New("TextButton", {
+				BackgroundColor3 = THEME.Primary,
+				Position = UDim2.new(1, -72, 0.5, -12),
+				Size = UDim2.new(0, 62, 0, 24),
+				Font = Enum.Font.GothamBold,
+				Text = "Nạp Key",
+				TextColor3 = Color3.fromRGB(255, 255, 255),
+				TextSize = 9.5,
+				AutoButtonColor = false,
+				Parent = row
+			})
+			Corner(loadOrdKeyBtn, 6)
+			loadOrdKeyBtn.MouseButton1Click:Connect(function()
+				State.config.saved_key = issued
+				saveConfig(State.config, true)
+				KeyInput.Text = State.config.hide_key and maskKey(issued) or issued
+				switchTab("auth")
+				verifyAndRunScript(issued)
+			end)
+		end
 	end
 end
 
 local function runOmniSync(showToastMsg, autoRunIfValid)
 	task.spawn(function()
 		local saved = cleanKey(State.config.saved_key)
-		local path = string.format("/api/omni_sync?hwid=%s&key=%s&fresh=1", urlEncode(DEVICE_HWID), urlEncode(saved))
+		local path = string.format("/api/omni_sync?hwid=%s&key=%s&source=loader&fresh=1", urlEncode(DEVICE_HWID), urlEncode(saved))
 		local data, _, ping = apiCall(path, "GET")
 		if not data or not data.success then
 			LiveStatusDot.BackgroundColor3 = THEME.Warn
 			SubHeaderLbl.Text = "Máy chủ đang khởi động... vui lòng chờ vài giây"
 			if showToastMsg then showToast("Máy chủ đang thức dậy, vui lòng thử lại sau vài giây.", true) end
 			return
+		end
+
+		if data.session_sig and tostring(data.session_sig) ~= "" then
+			State.session_sig = tostring(data.session_sig)
 		end
 
 		State.sync_rev = tonumber(data.sync_revision) or State.sync_rev
@@ -2470,6 +2579,21 @@ verifyAndRunScript = function(rawKey)
 			return
 		end
 
+		if not vData.valid and vData.is_paused and not vData.is_banned and not vData.is_expired and vData.hwid_match ~= false then
+			setStatus("Đang tự động mở lại Key đang bảo lưu [" .. k .. "]...", THEME.Accent)
+			local activeSig = tostring((vData.session_sig and vData.session_sig ~= "" and vData.session_sig) or State.session_sig or "")
+			local unpauseRes = apiCall("/api/toggle_pause_by_key", "POST", {
+				key = k,
+				hwid = DEVICE_HWID,
+				session_sig = activeSig,
+				is_paused = false
+			})
+			if unpauseRes and unpauseRes.success then
+				showToast(tostring(unpauseRes.message or "Đã mở lại Key bảo lưu thành công."), false)
+				vData = apiCall(vPath, "GET") or vData
+			end
+		end
+
 		if not vData.valid then
 			State.busy = false
 			ActivateBtn.Text = "KÍCH HOẠT & MỞ STUDIO"
@@ -2490,10 +2614,11 @@ verifyAndRunScript = function(rawKey)
 			local g = (type(getgenv) == "function") and getgenv() or _G
 			if type(g) == "table" then
 				if vData.session_sig then
-					g.BIVA_SESSION_SIG = tostring(vData.session_sig)
+					State.session_sig = tostring(vData.session_sig)
+					g.BIVA_SESSION_SIG = State.session_sig
 				end
 				g.BIVA_ULTRA_INSTINCT = (State.config.ultra_instinct ~= false)
-				g.BIVA_KEY = confirmed
+				g.BIVA_KEY = nil -- không lưu key plaintext trong getgenv()
 				g.BIVA_HWID = DEVICE_HWID
 			end
 		end)
@@ -2554,7 +2679,14 @@ local function watchInGameOrder(orderId, pkgName)
 			if not LoaderAlive then break end
 			local oid = State.config.pending_order_id
 			if not oid or oid == "" then break end
-			local res = apiCall("/api/check_order?order_id=" .. urlEncode(oid), "GET")
+			local res, status = apiCall("/api/check_order?order_id=" .. urlEncode(oid) .. "&hwid=" .. urlEncode(DEVICE_HWID), "GET")
+			if status == 403 or status == 404 then
+				State.config.pending_order_id = ""
+				saveConfig(State.config, true)
+				ShopOrderTitle.Text = "Đơn #" .. oid .. " không còn tồn tại hoặc không thuộc thiết bị này."
+				showToast("Đơn #" .. oid .. " đã hết hiệu lực hoặc không hợp lệ.", true)
+				break
+			end
 			if res and res.status == "paid" and res.key then
 				local newK = cleanKey(res.key)
 				State.config.pending_order_id = ""
@@ -2762,7 +2894,8 @@ ResetConfirmBtn.MouseButton1Click:Connect(function()
 	if targetResetKey == "" then return end
 	local k = targetResetKey
 	task.spawn(function()
-		local res = apiCall("/api/reset_hwid_by_key?key=" .. urlEncode(k), "POST", { key = k })
+		local activeSig = tostring((State.session_sig ~= "" and State.session_sig) or ((type(getgenv) == "function") and getgenv() or _G).BIVA_SESSION_SIG or "")
+		local res = apiCall("/api/reset_hwid_by_key?key=" .. urlEncode(k), "POST", { key = k, hwid = DEVICE_HWID, session_sig = activeSig })
 		if res and res.success then
 			showToast(tostring(res.message or "Đã gỡ khóa thiết bị thành công."), false)
 			runOmniSync(false, false)
@@ -2804,7 +2937,7 @@ CheckPaidBtn.MouseButton1Click:Connect(function()
 		return
 	end
 	task.spawn(function()
-		local res = apiCall("/api/check_order?order_id=" .. urlEncode(oid), "GET")
+		local res = apiCall("/api/check_order?order_id=" .. urlEncode(oid) .. "&hwid=" .. urlEncode(DEVICE_HWID), "GET")
 		if res and res.status == "paid" and res.key then
 			local k = cleanKey(res.key)
 			State.config.pending_order_id = ""
@@ -2829,7 +2962,10 @@ local function toggleMin()
 end
 
 MinBtn.MouseButton1Click:Connect(toggleMin)
-FloatingOrb.MouseButton1Click:Connect(toggleMin)
+FloatingOrb.MouseButton1Click:Connect(function()
+	if isOrbDragged and isOrbDragged() then return end
+	toggleMin()
+end)
 CloseBtn.MouseButton1Click:Connect(function() cleanupLoader() end)
 
 trackLoaderConn(UserInputService.InputBegan:Connect(function(input, gp)
