@@ -224,6 +224,22 @@ local function readClipboard()
 	return (ok and type(res) == "string") and res or ""
 end
 
+local SUPPORTED_GAMES = {
+	{ id = "steal_egg", name = "Steal an Egg (Full Hub)" },
+	{ id = "blox_fruits", name = "Blox Fruits (Cloud Studio)" },
+	{ id = "fisch", name = "Fisch (Cloud Studio)" },
+	{ id = "dead_rails", name = "Dead Rails (Cloud Studio)" },
+	{ id = "arise_crossover", name = "Arise Crossover (Cloud Studio)" },
+	{ id = "blue_lock", name = "Blue Lock Rivals (Cloud Studio)" }
+}
+
+local function getGameMeta(gameId)
+	for _, g in ipairs(SUPPORTED_GAMES) do
+		if g.id == gameId then return g end
+	end
+	return SUPPORTED_GAMES[1]
+end
+
 local function loadConfig()
 	local cfg = {
 		saved_key = "",
@@ -273,7 +289,11 @@ local function loadConfig()
 		if g and type(g.BIVA_ULTRA_INSTINCT) == "boolean" then
 			cfg.ultra_instinct = g.BIVA_ULTRA_INSTINCT
 		end
+		if g and type(g.BIVA_GAME_ID) == "string" and #g.BIVA_GAME_ID >= 2 then
+			cfg.selected_game = getGameMeta(g.BIVA_GAME_ID).id
+		end
 	end)
+	cfg.selected_game = getGameMeta(cfg.selected_game).id
 	if THEMES[cfg.theme_id] then
 		THEME = THEMES[cfg.theme_id]
 	else
@@ -629,7 +649,18 @@ local function MakeDraggable(handle, target)
 			if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
 				lastDragEndTime = os.clock()
 			end
-			target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+			local absW = math.max(target.AbsoluteSize.X, 60)
+			local absH = math.max(target.AbsoluteSize.Y, 30)
+			local anchor = target.AnchorPoint
+			local rawX = (startPos.X.Scale * vp.X) + startPos.X.Offset + delta.X
+			local rawY = (startPos.Y.Scale * vp.Y) + startPos.Y.Offset + delta.Y
+			local minX = (absW * anchor.X) + 6
+			local maxX = math.max(minX, vp.X - (absW * (1 - anchor.X)) - 6)
+			local minY = (absH * anchor.Y) + 6
+			local maxY = math.max(minY, vp.Y - (absH * (1 - anchor.Y)) - 6)
+			target.Position = UDim2.fromOffset(math.clamp(rawX, minX, maxX), math.clamp(rawY, minY, maxY))
 		end
 	end))
 	return function()
@@ -641,10 +672,15 @@ end
 local ToastHolder = New("Frame", {
 	BackgroundTransparency = 1,
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 14),
-	Size = UDim2.new(0, 380, 0, 96),
+	Position = UDim2.new(0.5, 0, 0, 12),
+	Size = UDim2.new(1, -24, 0, 96),
 	ZIndex = 120,
 	Parent = ScreenGui
+})
+New("UISizeConstraint", {
+	MaxSize = Vector2.new(380, 96),
+	MinSize = Vector2.new(200, 32),
+	Parent = ToastHolder
 })
 New("UIListLayout", {
 	Padding = UDim.new(0, 6),
@@ -764,10 +800,20 @@ local function updateResponsiveScale()
 	local cam = workspace.CurrentCamera
 	if not cam then return end
 	local vp = cam.ViewportSize
-	local scaleX = (vp.X - 24) / 600
-	local scaleY = (vp.Y - 24) / 400
+	local scaleX = (vp.X - 20) / 600
+	local scaleY = (vp.Y - 20) / 400
 	local s = math.min(1, scaleX, scaleY)
-	WindowScale.Scale = math.clamp(s, 0.62, 1)
+	WindowScale.Scale = math.clamp(s, 0.45, 1)
+	if MainWindow and MainWindow.Parent and MainWindow.Position.X.Scale == 0 then
+		local absW = math.max(MainWindow.AbsoluteSize.X, 60)
+		local absH = math.max(MainWindow.AbsoluteSize.Y, 30)
+		local anchor = MainWindow.AnchorPoint
+		local minX = (absW * anchor.X) + 6
+		local maxX = math.max(minX, vp.X - (absW * (1 - anchor.X)) - 6)
+		local minY = (absH * anchor.Y) + 6
+		local maxY = math.max(minY, vp.Y - (absH * (1 - anchor.Y)) - 6)
+		MainWindow.Position = UDim2.fromOffset(math.clamp(MainWindow.Position.X.Offset, minX, maxX), math.clamp(MainWindow.Position.Y.Offset, minY, maxY))
+	end
 end
 updateResponsiveScale()
 if workspace.CurrentCamera then
@@ -818,11 +864,12 @@ BindTheme(LogoMono, "TextColor3", "Accent")
 local TitleLbl = New("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 46, 0, 6),
-	Size = UDim2.new(0, 350, 0, 16),
+	Size = UDim2.new(1, -192, 0, 16),
 	Font = Enum.Font.GothamBold,
 	Text = "BIVA STORM v6.0 — ULTRA INSTINCT",
 	TextColor3 = THEME.TextMain,
 	TextSize = 12.5,
+	TextTruncate = Enum.TextTruncate.AtEnd,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Parent = Header
 })
@@ -840,11 +887,12 @@ Corner(LiveStatusDot, 3)
 local SubHeaderLbl = New("TextLabel", {
 	BackgroundTransparency = 1,
 	Position = UDim2.new(0, 57, 0, 22),
-	Size = UDim2.new(0, 350, 0, 15),
+	Size = UDim2.new(1, -204, 0, 15),
 	Font = Enum.Font.Code,
 	Text = EXECUTOR_NAME .. " • Ping: --ms",
 	TextColor3 = THEME.TextSub,
 	TextSize = 10.5,
+	TextTruncate = Enum.TextTruncate.AtEnd,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Parent = Header
 })
@@ -1234,6 +1282,61 @@ ClearKeyBtn.MouseButton1Click:Connect(function()
 	showToast("Đã làm trống ô nhập Key.", false)
 end)
 
+local GameSelectorRow = New("Frame", {
+	BackgroundColor3 = THEME.BgElevated,
+	Size = UDim2.new(1, 0, 0, 32),
+	Parent = TabPages.auth
+})
+Corner(GameSelectorRow, 8)
+Stroke(GameSelectorRow, "Border", 1, 0.2)
+BindTheme(GameSelectorRow, "BackgroundColor3", "BgElevated")
+
+local GameSelectorTitle = New("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 10, 0, 0),
+	Size = UDim2.new(0, 96, 1, 0),
+	Font = Enum.Font.GothamBold,
+	Text = "CHỌN GAME CLOUD:",
+	TextColor3 = THEME.TextMuted,
+	TextSize = 9.5,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Parent = GameSelectorRow
+})
+BindTheme(GameSelectorTitle, "TextColor3", "TextMuted")
+
+local GameSelectorBtn = New("TextButton", {
+	BackgroundColor3 = THEME.BgInput,
+	Position = UDim2.new(0, 108, 0, 4),
+	Size = UDim2.new(1, -114, 0, 24),
+	Font = Enum.Font.GothamBold,
+	Text = getGameMeta(State.config.selected_game).name .. "  ▾",
+	TextColor3 = THEME.Accent,
+	TextSize = 10.5,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	AutoButtonColor = false,
+	Parent = GameSelectorRow
+})
+Corner(GameSelectorBtn, 6)
+Stroke(GameSelectorBtn, "Accent", 1, 0.55)
+BindTheme(GameSelectorBtn, "BackgroundColor3", "BgInput")
+BindTheme(GameSelectorBtn, "TextColor3", "Accent")
+
+GameSelectorBtn.MouseButton1Click:Connect(function()
+	local currId = State.config.selected_game or "steal_egg"
+	local nextIdx = 1
+	for i, g in ipairs(SUPPORTED_GAMES) do
+		if g.id == currId then
+			nextIdx = (i % #SUPPORTED_GAMES) + 1
+			break
+		end
+	end
+	local picked = SUPPORTED_GAMES[nextIdx]
+	State.config.selected_game = picked.id
+	GameSelectorBtn.Text = picked.name .. "  ▾"
+	saveConfig(State.config)
+	showToast("Đã chọn Cloud Game: " .. picked.name, false)
+end)
+
 local AuthBtnRow = New("Frame", {
 	BackgroundTransparency = 1,
 	Size = UDim2.new(1, 0, 0, 36),
@@ -1443,12 +1546,12 @@ BindTheme(ApplyVoucherBtn, "BackgroundColor3", "Primary")
 
 local PlansGrid = New("Frame", {
 	BackgroundTransparency = 1,
-	Size = UDim2.new(1, 0, 0, 214),
+	Size = UDim2.new(1, 0, 0, 232),
 	Parent = TabPages.shop
 })
 New("UIGridLayout", {
 	CellPadding = UDim2.new(0, 8, 0, 8),
-	CellSize = UDim2.new(0.5, -4, 0, 66),
+	CellSize = UDim2.new(0.5, -4, 0, 72),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 	Parent = PlansGrid
 })
@@ -1715,7 +1818,7 @@ BindTheme(ResetDescLbl, "TextColor3", "TextSub")
 local ResetCancelBtn = New("TextButton", {
 	BackgroundColor3 = THEME.BgElevated,
 	Position = UDim2.new(0, 14, 1, -40),
-	Size = UDim2.new(0.46, 0, 0, 28),
+	Size = UDim2.new(0.5, -19, 0, 28),
 	Font = Enum.Font.GothamBold,
 	Text = "Huỷ Bỏ",
 	TextColor3 = THEME.TextSub,
@@ -1730,8 +1833,8 @@ BindTheme(ResetCancelBtn, "TextColor3", "TextSub")
 
 local ResetConfirmBtn = New("TextButton", {
 	BackgroundColor3 = THEME.Primary,
-	Position = UDim2.new(0.54, -14, 1, -40),
-	Size = UDim2.new(0.46, 0, 0, 28),
+	Position = UDim2.new(0.5, 5, 1, -40),
+	Size = UDim2.new(0.5, -19, 0, 28),
 	Font = Enum.Font.GothamBold,
 	Text = "Xác Nhận Gỡ",
 	TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -2082,15 +2185,21 @@ addActionUtilBtn("Sao Chép Loader Kèm Key", function()
 		return
 	end
 	local uiFlag = (State.config.ultra_instinct ~= false) and "true" or "false"
-	local s = string.format('getgenv().BIVA_AUTO_KEY = "%s"; getgenv().BIVA_ULTRA_INSTINCT = %s; loadstring(game:HttpGet("%s"))()', k, uiFlag, LOADER_RAW_URL)
+	local gid = getGameMeta(State.config.selected_game).id
+	local s = string.format('getgenv().BIVA_GAME_ID = "%s"; getgenv().BIVA_AUTO_KEY = "%s"; getgenv().BIVA_ULTRA_INSTINCT = %s; loadstring(game:HttpGet("%s"))()', gid, k, uiFlag, LOADER_RAW_URL)
 	copyClipboard(s)
-	showToast("Đã sao chép Script kèm sẵn mã Key & chế độ Ultra Instinct.", false)
+	showToast("Đã sao chép Script kèm sẵn mã Key & Game đang chọn.", false)
 end)
 
 addActionUtilBtn("Sao Chép PlaceId & JobId", function()
 	local info = string.format("PlaceId: %s | JobId: %s", tostring(game.PlaceId), tostring(game.JobId))
 	copyClipboard(info)
 	showToast("Đã sao chép PlaceId & JobId.", false)
+end)
+
+addActionUtilBtn("Sao Chép Mã Máy (HWID)", function()
+	copyClipboard(DEVICE_HWID)
+	showToast("Đã sao chép Mã Máy: " .. DEVICE_HWID, false)
 end)
 
 -- ==============================================================================
@@ -2179,7 +2288,7 @@ renderVaultUI = function()
 		local row = New("Frame", {
 			BackgroundColor3 = THEME.BgInput,
 			LayoutOrder = idx,
-			Size = UDim2.new(1, 0, 0, 50),
+			Size = UDim2.new(1, 0, 0, 68),
 			Parent = VaultList
 		})
 		Corner(row, 8)
@@ -2188,35 +2297,36 @@ renderVaultUI = function()
 
 		New("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 5),
-			Size = UDim2.new(0.46, 0, 0, 18),
+			Position = UDim2.new(0, 10, 0, 6),
+			Size = UDim2.new(0.48, -10, 0, 18),
 			Font = Enum.Font.Code,
 			Text = code,
 			TextColor3 = isPaused and THEME.Warn or THEME.Accent,
 			TextSize = 12,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
 		})
 
 		New("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 10, 0, 24),
-			Size = UDim2.new(0.46, 0, 0, 20),
+			Position = UDim2.new(0.48, 0, 0, 6),
+			Size = UDim2.new(0.52, -10, 0, 18),
 			Font = Enum.Font.GothamMedium,
 			Text = string.format("Gói: %s • %s (%d/%d máy)", pkg, left, devCnt, maxDev),
 			TextColor3 = THEME.TextSub,
 			TextSize = 10,
 			TextTruncate = Enum.TextTruncate.AtEnd,
-			TextXAlignment = Enum.TextXAlignment.Left,
+			TextXAlignment = Enum.TextXAlignment.Right,
 			Parent = row
 		})
 
 		local useBtn = New("TextButton", {
 			BackgroundColor3 = THEME.Primary,
-			Position = UDim2.new(1, -214, 0.5, -13),
-			Size = UDim2.new(0, 48, 0, 26),
+			Position = UDim2.new(0.02, 0, 0, 36),
+			Size = UDim2.new(0.23, 0, 0, 24),
 			Font = Enum.Font.GothamBold,
-			Text = "Nạp",
+			Text = "Nạp Key",
 			TextColor3 = Color3.fromRGB(255, 255, 255),
 			TextSize = 10,
 			AutoButtonColor = false,
@@ -2226,10 +2336,10 @@ renderVaultUI = function()
 
 		local pauseBtn = New("TextButton", {
 			BackgroundColor3 = isPaused and Color3.fromRGB(16, 48, 36) or THEME.BgElevated,
-			Position = UDim2.new(1, -162, 0.5, -13),
-			Size = UDim2.new(0, 52, 0, 26),
+			Position = UDim2.new(0.265, 0, 0, 36),
+			Size = UDim2.new(0.23, 0, 0, 24),
 			Font = Enum.Font.GothamBold,
-			Text = isPaused and "Mở Key" or "Bảo Lưu",
+			Text = isPaused and "▶️ Mở Key" or "⏸️ Bảo Lưu",
 			TextColor3 = isPaused and THEME.Ok or THEME.Accent,
 			TextSize = 9.5,
 			AutoButtonColor = false,
@@ -2239,10 +2349,10 @@ renderVaultUI = function()
 
 		local cpBtn = New("TextButton", {
 			BackgroundColor3 = THEME.BgElevated,
-			Position = UDim2.new(1, -106, 0.5, -13),
-			Size = UDim2.new(0, 42, 0, 26),
+			Position = UDim2.new(0.51, 0, 0, 36),
+			Size = UDim2.new(0.23, 0, 0, 24),
 			Font = Enum.Font.GothamBold,
-			Text = "Copy",
+			Text = "Sao Chép",
 			TextColor3 = THEME.TextMain,
 			TextSize = 10,
 			AutoButtonColor = false,
@@ -2252,8 +2362,8 @@ renderVaultUI = function()
 
 		local rstBtn = New("TextButton", {
 			BackgroundColor3 = Color3.fromRGB(48, 32, 12),
-			Position = UDim2.new(1, -60, 0.5, -13),
-			Size = UDim2.new(0, 52, 0, 26),
+			Position = UDim2.new(0.755, 0, 0, 36),
+			Size = UDim2.new(0.225, 0, 0, 24),
 			Font = Enum.Font.GothamBold,
 			Text = "Đổi Máy",
 			TextColor3 = THEME.Warn,
@@ -2327,6 +2437,7 @@ renderSupportUI = function()
 			Text = "Chưa có lịch sử đơn hàng hoặc yêu cầu hỗ trợ trên thiết bị này.",
 			TextColor3 = THEME.TextSub,
 			TextSize = 10.5,
+			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = empty
 		})
@@ -2353,6 +2464,7 @@ renderSupportUI = function()
 			Text = string.format("[%s] %s", tostring(t.ticket_id or "TICKET"), isDone and "Đã phản hồi" or "Đang chờ xử lý"),
 			TextColor3 = isDone and THEME.Ok or THEME.Warn,
 			TextSize = 10.5,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
 		})
@@ -2388,22 +2500,24 @@ renderSupportUI = function()
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 5),
-			Size = UDim2.new(0.68, 0, 0, 16),
+			Size = UDim2.new(1, -90, 0, 16),
 			Font = Enum.Font.GothamBold,
 			Text = string.format("Đơn #%s • %s (%s)", oid, pkg, formatVND(o.price or 0)),
 			TextColor3 = THEME.TextMain,
 			TextSize = 10.5,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
 		})
 		New("TextLabel", {
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 10, 0, 23),
-			Size = UDim2.new(0.68, 0, 0, 16),
+			Size = UDim2.new(1, -90, 0, 16),
 			Font = Enum.Font.Code,
 			Text = isPaid and ("Key: " .. (issued ~= "" and issued or "Đã cấp")) or "Đang chờ thanh toán",
 			TextColor3 = isPaid and THEME.Accent or THEME.Warn,
 			TextSize = 10,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row
 		})
@@ -2717,12 +2831,13 @@ for idx, p in ipairs(CorePlans) do
 
 	local cardTitle = New("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 8, 0, 4),
+		Position = UDim2.new(0, 8, 0, 5),
 		Size = UDim2.new(1, -16, 0, 14),
 		Font = Enum.Font.GothamBold,
 		Text = p.title,
 		TextColor3 = THEME.TextMain,
 		TextSize = 10.5,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card
 	})
@@ -2730,12 +2845,13 @@ for idx, p in ipairs(CorePlans) do
 
 	local pLbl = New("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 8, 0, 18),
-		Size = UDim2.new(1, -16, 0, 16),
+		Position = UDim2.new(0, 8, 0, 21),
+		Size = UDim2.new(1, -90, 0, 16),
 		Font = Enum.Font.Code,
 		Text = p.price,
 		TextColor3 = THEME.Accent,
-		TextSize = 11.5,
+		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card
 	})
@@ -2744,22 +2860,24 @@ for idx, p in ipairs(CorePlans) do
 
 	local cardSub = New("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 8, 0, 35),
-		Size = UDim2.new(0.62, 0, 0, 14),
+		Position = UDim2.new(0, 8, 0, 39),
+		Size = UDim2.new(1, -90, 0, 26),
 		Font = Enum.Font.GothamMedium,
 		Text = p.sub,
 		TextColor3 = THEME.TextSub,
 		TextSize = 9,
+		TextWrapped = true,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
 		Parent = card
 	})
 	BindTheme(cardSub, "TextColor3", "TextSub")
 
 	local actionBtn = New("TextButton", {
 		BackgroundColor3 = p.isFree and THEME.BgInput or THEME.Primary,
-		Position = UDim2.new(1, -84, 1, -24),
-		Size = UDim2.new(0, 76, 0, 19),
+		Position = UDim2.new(1, -80, 0, 25),
+		Size = UDim2.new(0, 72, 0, 24),
 		Font = Enum.Font.GothamBold,
 		Text = p.isFree and "Vượt Link" or "Mua Ngay",
 		TextColor3 = p.isFree and THEME.Accent or Color3.fromRGB(255, 255, 255),
